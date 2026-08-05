@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>瑞瑞照護記錄</title>
+<style>
+  :root{
+    --milk:#FBF7EF;
+    --tabby:#5A4A3A;
+    --tabby-soft:#8A7A68;
+    --stripe:#EDE4D6;
+    --butter:#F5C84C;
+    --butter-deep:#E0A93E;
+    --paw:#E8927C;
+    --leaf:#7FA37A;
+    --card:#FFFFFF;
+    --shadow:0 2px 10px rgba(90,74,58,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+    background:var(--milk);color:var(--tabby);
+    min-height:100vh;padding-bottom:95px;
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:16px}
+
+  header{display:flex;align-items:baseline;gap:10px;padding:8px 4px 14px}
+  header h1{font-size:26px;font-weight:800;letter-spacing:2px}
+  header .age{font-size:13px;color:var(--tabby-soft)}
+
+  .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
+  .stat{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:12px 8px;text-align:center}
+  .stat .val{font-size:20px;font-weight:800;line-height:1.2}
+  .stat .lbl{font-size:11px;color:var(--tabby-soft);margin-top:3px}
+  .stat.alert .val{color:var(--paw)}
+  .stat.ok .val{color:var(--leaf)}
+
+  .card{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+  .card h2{font-size:14px;font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+  .card h2 .sub{font-size:11px;font-weight:400;color:var(--tabby-soft)}
+  canvas{width:100%;display:block}
+  #weightChart{height:150px}
+  #milkChart{height:140px}
+
+  .day-group{margin-bottom:6px}
+  .day-head{font-size:12px;font-weight:700;color:var(--tabby-soft);padding:10px 4px 6px;display:flex;justify-content:space-between}
+  .entry{
+    background:var(--card);border-radius:12px;box-shadow:var(--shadow);
+    padding:11px 12px;margin-bottom:8px;
+    display:flex;align-items:flex-start;gap:10px;cursor:pointer;
+    transition:transform .1s;
+  }
+  .entry:active{transform:scale(.985)}
+  .entry .time{font-size:14px;font-weight:700;min-width:46px;padding-top:1px}
+  .entry .mid{flex:1;min-width:0}
+  .entry .main-line{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
+  .entry .ml{font-size:15px;font-weight:700}
+  .entry .ml small,.entry .gw small{font-size:11px;font-weight:400;color:var(--tabby-soft)}
+  .entry .gw{font-size:13px;font-weight:700;color:var(--butter-deep)}
+  .entry .flags{font-size:11px;color:var(--tabby-soft);margin-top:3px;display:flex;flex-wrap:wrap;gap:8px}
+  .entry .flags .yes{color:var(--leaf);font-weight:600}
+  .entry .flags .poop{color:var(--butter-deep);font-weight:700}
+  .entry .flags .wound{color:var(--paw);font-weight:600}
+  .entry .note{font-size:11px;color:var(--tabby-soft);margin-top:3px;word-break:break-all;line-height:1.5}
+  .entry .who{font-size:11px;padding:3px 8px;border-radius:99px;white-space:nowrap;background:var(--stripe);color:var(--tabby-soft);font-weight:600;margin-top:1px}
+  .entry .who.mama{background:#F9E3DC;color:#C46A52}
+  .entry .who.baba{background:#E3EDE2;color:#5B8256}
+  .entry .who.naima{background:#EAE4F2;color:#7B6A99}
+  .empty{text-align:center;color:var(--tabby-soft);font-size:13px;padding:30px 0}
+  .hint{text-align:center;font-size:11px;color:#B7AB9C;margin-top:4px;margin-bottom:8px}
+
+  .fab{
+    position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+    background:var(--tabby);color:#fff;border:none;border-radius:99px;
+    padding:14px 30px;font-size:15px;font-weight:700;font-family:inherit;
+    box-shadow:0 6px 18px rgba(90,74,58,.3);cursor:pointer;z-index:20;letter-spacing:1px;
+  }
+  .overlay{position:fixed;inset:0;background:rgba(60,48,38,.45);z-index:30;display:none}
+  .overlay.show{display:block}
+  .sheet{
+    position:fixed;left:0;right:0;bottom:-110%;z-index:40;
+    background:var(--milk);border-radius:22px 22px 0 0;
+    padding:20px 18px 34px;max-width:520px;margin:0 auto;
+    transition:bottom .25s ease;max-height:90vh;overflow-y:auto;
+  }
+  .sheet.show{bottom:0}
+  .sheet h3{font-size:17px;font-weight:800;margin-bottom:4px}
+  .sheet .sheet-sub{font-size:11px;color:var(--tabby-soft);margin-bottom:14px}
+  .field{margin-bottom:13px}
+  .field label{font-size:12px;font-weight:700;color:var(--tabby-soft);display:block;margin-bottom:5px}
+  .field input[type=text],.field input[type=number],.field input[type=datetime-local],.field textarea{
+    width:100%;padding:11px 12px;border:1.5px solid var(--stripe);border-radius:11px;
+    font-size:15px;font-family:inherit;background:#fff;color:var(--tabby);
+  }
+  .field textarea{resize:vertical;min-height:56px;line-height:1.5}
+  .field input:focus,.field textarea:focus{outline:2px solid var(--butter);border-color:transparent}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .seg{display:flex;gap:8px}
+  .seg button{
+    flex:1;padding:10px 0;border-radius:11px;border:1.5px solid var(--stripe);
+    background:#fff;font-size:13px;font-weight:600;color:var(--tabby-soft);
+    cursor:pointer;font-family:inherit;
+  }
+  .seg button.sel{background:var(--tabby);color:#fff;border-color:var(--tabby)}
+  .seg button.sel.pink{background:var(--paw);border-color:var(--paw)}
+  .seg button.sel.green{background:var(--leaf);border-color:var(--leaf)}
+  .seg button.sel.yellow{background:var(--butter);border-color:var(--butter);color:var(--tabby)}
+  .sheet .save{
+    width:100%;padding:14px 0;border:none;border-radius:13px;
+    background:var(--tabby);color:#fff;font-size:16px;font-weight:800;
+    font-family:inherit;cursor:pointer;margin-top:6px;letter-spacing:2px;
+  }
+  .sheet .save:disabled{opacity:.5}
+  .sheet .danger{
+    width:100%;padding:11px 0;border:none;border-radius:13px;background:none;
+    color:var(--paw);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;margin-top:8px;
+  }
+  .sheet .cancel{
+    width:100%;padding:10px 0;border:none;background:none;
+    color:var(--tabby-soft);font-size:13px;font-family:inherit;cursor:pointer;margin-top:2px;
+  }
+  .toast{
+    position:fixed;top:18px;left:50%;transform:translateX(-50%);
+    background:var(--tabby);color:#fff;padding:10px 20px;border-radius:99px;
+    font-size:13px;z-index:60;opacity:0;transition:opacity .3s;pointer-events:none;
+    max-width:88%;text-align:center;
+  }
+  .toast.show{opacity:1}
+  .syncnote{text-align:center;font-size:11px;color:#B7AB9C;margin-top:6px}
+  .syncnote.live{color:var(--leaf);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span style="font-size:20px">🐾</span>
+    <h1>瑞瑞照護記錄</h1>
+    <span class="age">約 20+ 天</span>
+  </header>
+
+  <div class="stats">
+    <div class="stat ok">
+      <div class="val" id="statWeight">–</div>
+      <div class="lbl">最新體重</div>
+    </div>
+    <div class="stat">
+      <div class="val" id="statMilk">–</div>
+      <div class="lbl">今日奶量</div>
+    </div>
+    <div class="stat" id="statPoopCard">
+      <div class="val" id="statPoop">–</div>
+      <div class="lbl">距上次便便</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>體重趨勢 <span class="sub">g・尿尿後餵奶前</span></h2>
+    <canvas id="weightChart"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>每日奶量 <span class="sub">mL・當日合計</span></h2>
+    <canvas id="milkChart"></canvas>
+  </div>
+
+  <div class="hint">點任一筆記錄可以編輯或刪除</div>
+  <div id="listArea"><div class="empty">連線中…</div></div>
+  <div class="syncnote" id="syncNote">連線中…</div>
+</div>
+
+<button class="fab" id="fabBtn">＋ 新增記錄</button>
+
+<div class="overlay" id="overlay"></div>
+<div class="sheet" id="sheet">
+  <h3 id="sheetTitle">新增記錄</h3>
+  <div class="sheet-sub">奶量、體重、便便、傷口都可以在同一筆一起填，沒有的留空就好</div>
+
+  <div class="field">
+    <label>時間</label>
+    <input type="datetime-local" id="fTime">
+  </div>
+
+  <div class="two-col">
+    <div class="field">
+      <label>🍼 奶量 (mL)</label>
+      <input type="number" id="fMl" inputmode="decimal" step="0.5" min="0" placeholder="沒餵留空">
+    </div>
+    <div class="field">
+      <label>⚖️ 體重 (g)</label>
+      <input type="number" id="fG" inputmode="decimal" step="0.5" min="0" placeholder="沒量留空">
+    </div>
+  </div>
+
+  <div class="field">
+    <label>💧 尿尿</label>
+    <div class="seg" id="peeSeg">
+      <button data-v="yes">有</button>
+      <button data-v="self">自己尿</button>
+      <button data-v="no">沒有</button>
+      <button data-v="na">未確認</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>💛 便便</label>
+    <div class="seg" id="poopSeg">
+      <button data-v="no">沒有</button>
+      <button data-v="yes">有</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>🩹 傷口／擦藥（有觀察或處理才填）</label>
+    <input type="text" id="fWound" placeholder="例如：有擦藥、痂皮翹起、滲組織液…">
+  </div>
+
+  <div class="field">
+    <label>記錄人</label>
+    <div class="seg" id="whoSeg">
+      <button data-v="媽媽">媽媽</button>
+      <button data-v="拔拔">拔拔</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>備註（可空白）</label>
+    <textarea id="fNote" placeholder="例如：餓醒的、叫醒才喝、喝完難入睡…"></textarea>
+  </div>
+
+  <button class="save" id="saveBtn">儲存</button>
+  <button class="danger" id="deleteBtn" style="display:none">刪除這筆記錄</button>
+  <button class="cancel" id="cancelBtn">取消</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, collection, doc, setDoc, deleteDoc, getDoc,
+  onSnapshot, writeBatch
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* ================= Firebase ================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyCDCGUnjAJbLiUPX3_RbdphVi7CFELZUcM",
+  authDomain: "rayray-dairy.firebaseapp.com",
+  projectId: "rayray-dairy",
+  storageBucket: "rayray-dairy.firebasestorage.app",
+  messagingSenderId: "527703048950",
+  appId: "1:527703048950:web:daf9f451bb7b745ce6a2d7"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const COL = 'ruirui';
+
+let entries = [];   /* {id,t,ml,g,pee,poop,wound,note,who} */
+let editingId = null;
+let deleteArmed = false;
+
+/* ================= 歷史資料（首次自動匯入） ================= */
+const SEED=[
+ ["2026-07-30T01:00",null,150,"na","no","","",  "奶媽"],
+ ["2026-07-30T20:00",null,154,"na","no","","",  "奶媽"],
+ ["2026-07-31T01:00",null,160,"na","no","","",  "奶媽"],
+ ["2026-07-31T20:00",null,175,"na","no","","",  "奶媽"],
+ ["2026-08-01T01:00",null,178,"na","no","","",  "媽媽"],
+ ["2026-08-01T13:00",null,181,"na","no","","",  "媽媽"],
+ ["2026-08-01T18:15",6,null,"yes","no","","喝完睡覺","媽媽"],
+ ["2026-08-01T20:00",5,null,"yes","no","","間隔較短","媽媽"],
+ ["2026-08-01T22:30",10,null,"yes","no","","主動吸奶","媽媽"],
+ ["2026-08-02T01:00",10,null,"yes","no","","主動吸奶","媽媽"],
+ ["2026-08-02T06:00",7,178.5,"yes","no","","是否排尿後不確定","媽媽"],
+ ["2026-08-02T10:00",4,183,"yes","no","","叫醒後喝","媽媽"],
+ ["2026-08-02T13:00",10,181,"yes","no","","喝得順利","媽媽"],
+ ["2026-08-02T18:40",10,null,"yes","no","","","媽媽"],
+ ["2026-08-02T22:00",7,194.5,"yes","no","","","媽媽"],
+ ["2026-08-03T00:00",null,null,"na","yes","","第一次便便！(看診當天)","媽媽"],
+ ["2026-08-03T04:50",10,193,"yes","no","","","媽媽"],
+ ["2026-08-03T07:50",5,null,"yes","no","","","媽媽"],
+ ["2026-08-03T10:00",5,null,"yes","no","","看起來又餓補喝","媽媽"],
+ ["2026-08-03T14:00",3.5,null,"yes","no","","喝得較少","媽媽"],
+ ["2026-08-03T17:00",4,null,"yes","no","痂皮有一小片快掉","","媽媽"],
+ ["2026-08-03T17:50",5,null,"yes","no","","加餐","媽媽"],
+ ["2026-08-03T19:40",7,null,"yes","no","","自己餓醒","媽媽"],
+ ["2026-08-03T21:20",3,null,"na","no","","","媽媽"],
+ ["2026-08-03T23:50",15,null,"na","no","","單次喝較多","媽媽"],
+ ["2026-08-04T05:00",2,203,"yes","no","","叫醒後喝","媽媽"],
+ ["2026-08-04T08:30",4,null,"yes","no","","","媽媽"],
+ ["2026-08-04T11:20",6,null,"yes","no","","","媽媽"],
+ ["2026-08-04T13:13",3,null,"na","no","","少量加餐","媽媽"],
+ ["2026-08-04T16:25",10,null,"yes","no","","","媽媽"],
+ ["2026-08-04T18:00",5,null,"na","no","","看完獸醫後喝","媽媽"],
+ ["2026-08-04T21:41",10,211,"yes","no","","","媽媽"],
+ ["2026-08-05T03:30",4,null,"yes","no","","","媽媽"],
+ ["2026-08-05T07:30",5,null,"self","no","有擦藥","自己尿在毯子上","媽媽"],
+ ["2026-08-05T11:30",6,null,"yes","no","","","媽媽"]
+];
+
+async function seedIfEmpty(){
+  const marker = doc(db, 'meta', 'seeded');
+  try{
+    const m = await getDoc(marker);
+    if(m.exists())return;
+    const batch = writeBatch(db);
+    SEED.forEach((s,i)=>{
+      const ref = doc(db, COL, 'seed'+String(i).padStart(3,'0'));
+      batch.set(ref, {
+        t:s[0], ml:s[1], g:s[2], pee:s[3], poop:s[4],
+        wound:s[5]||'', note:s[6]||'', who:s[7]
+      });
+    });
+    batch.set(marker,{at:new Date().toISOString()});
+    await batch.commit();
+    toast('已匯入歷史記錄 🐾');
+  }catch(e){
+    console.error('seed error',e);
+    toast('連線失敗：'+(e.message||'請檢查網路'));
+  }
+}
+
+/* ================= 即時監聽 ================= */
+function startListening(){
+  onSnapshot(collection(db, COL),
+    snap=>{
+      entries = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      renderAll();
+      const note=document.getElementById('syncNote');
+      note.textContent='🟢 即時同步中：媽媽和拔拔的記錄會立即互相更新';
+      note.classList.add('live');
+    },
+    err=>{
+      console.error('listen error',err);
+      const note=document.getElementById('syncNote');
+      note.textContent='⚠️ 連線中斷：'+(err.message||'請檢查網路');
+      note.classList.remove('live');
+    }
+  );
+}
+
+/* ================= 工具 ================= */
+const pad=n=>String(n).padStart(2,'0');
+const fmtDay=d=>`${d.getMonth()+1}/${d.getDate()}`;
+const fmtTime=d=>`${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function nowLocal(){
+  const d=new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+function esc(s){return String(s||'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]))}
+
+/* ================= 統計 ================= */
+function renderStats(){
+  const ws=entries.filter(e=>e.g!=null).sort((a,b)=>a.t.localeCompare(b.t));
+  const last=ws[ws.length-1];
+  document.getElementById('statWeight').textContent=last?last.g+'g':'–';
+
+  const d=new Date();
+  const dkey=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const todayMl=entries.filter(e=>e.t&&e.t.startsWith(dkey)).reduce((s,e)=>s+(+e.ml||0),0);
+  document.getElementById('statMilk').textContent=todayMl+'ml';
+
+  const poops=entries.filter(e=>e.poop==='yes').sort((a,b)=>b.t.localeCompare(a.t));
+  const card=document.getElementById('statPoopCard');
+  card.classList.remove('alert','ok');
+  if(poops.length){
+    const hrs=Math.floor((Date.now()-new Date(poops[0].t))/36e5);
+    document.getElementById('statPoop').textContent=hrs<24?hrs+'小時':Math.floor(hrs/24)+'天'+(hrs%24)+'時';
+    card.classList.add(hrs>=48?'alert':'ok');
+  }else{
+    document.getElementById('statPoop').textContent='無記錄';
+  }
+}
+
+/* ================= 體重折線圖 ================= */
+function renderWeightChart(){
+  const cv=document.getElementById('weightChart');
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.clientWidth,H=150;
+  cv.width=W*dpr;cv.height=H*dpr;
+  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+
+  const ws=entries.filter(e=>e.g!=null).sort((a,b)=>a.t.localeCompare(b.t));
+  if(ws.length<2){ctx.fillStyle='#B7AB9C';ctx.font='12px sans-serif';ctx.fillText('至少要兩筆體重才能畫圖',16,70);return}
+  const xs=ws.map(w=>new Date(w.t).getTime());
+  const ys=ws.map(w=>w.g);
+  const x0=Math.min(...xs),x1=Math.max(...xs);
+  const y0=Math.min(...ys)-8,y1=Math.max(...ys)+8;
+  const px=t=>18+(t-x0)/((x1-x0)||1)*(W-36);
+  const py=g=>H-24-(g-y0)/((y1-y0)||1)*(H-44);
+
+  ctx.strokeStyle='#F0E9DD';ctx.lineWidth=1;
+  for(let i=0;i<4;i++){
+    const y=14+i*(H-38)/3;
+    ctx.beginPath();ctx.moveTo(14,y);ctx.lineTo(W-14,y);ctx.stroke();
+  }
+  ctx.beginPath();
+  ws.forEach((w,i)=>{const x=px(xs[i]),y=py(ys[i]);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+  ctx.lineTo(px(xs[xs.length-1]),H-20);ctx.lineTo(px(xs[0]),H-20);ctx.closePath();
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'rgba(245,200,76,.35)');grad.addColorStop(1,'rgba(245,200,76,0)');
+  ctx.fillStyle=grad;ctx.fill();
+  ctx.beginPath();
+  ws.forEach((w,i)=>{const x=px(xs[i]),y=py(ys[i]);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+  ctx.strokeStyle='#E0A93E';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.stroke();
+  ws.forEach((w,i)=>{
+    ctx.beginPath();ctx.arc(px(xs[i]),py(ys[i]),3,0,7);
+    ctx.fillStyle='#fff';ctx.fill();
+    ctx.strokeStyle='#E0A93E';ctx.lineWidth=2;ctx.stroke();
+  });
+  ctx.fillStyle='#8A7A68';ctx.font='11px sans-serif';ctx.textAlign='left';
+  ctx.fillText(ys[0]+'g',px(xs[0])-6,py(ys[0])-8);
+  ctx.textAlign='right';
+  ctx.fillStyle='#5A4A3A';ctx.font='bold 12px sans-serif';
+  ctx.fillText(ys[ys.length-1]+'g',Math.min(px(xs[xs.length-1])+6,W-4),py(ys[ys.length-1])-8);
+  ctx.fillStyle='#B7AB9C';ctx.font='10px sans-serif';
+  ctx.textAlign='left';ctx.fillText(fmtDay(new Date(xs[0])),16,H-6);
+  ctx.textAlign='right';ctx.fillText(fmtDay(new Date(xs[xs.length-1])),W-16,H-6);
+}
+
+/* ================= 每日奶量長條圖 ================= */
+function renderMilkChart(){
+  const cv=document.getElementById('milkChart');
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.clientWidth,H=140;
+  cv.width=W*dpr;cv.height=H*dpr;
+  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+
+  const daily={};
+  entries.forEach(e=>{
+    if(!e.ml)return;
+    const d=e.t.slice(0,10);
+    daily[d]=(daily[d]||0)+(+e.ml||0);
+  });
+  const days=Object.keys(daily).sort();
+  if(!days.length){ctx.fillStyle='#B7AB9C';ctx.font='12px sans-serif';ctx.fillText('還沒有奶量記錄',16,70);return}
+  const shown=days.slice(-8);
+  const max=Math.max(...shown.map(d=>daily[d]),10);
+  const gap=(W-32)/shown.length;
+  const barW=Math.min(36,gap-10);
+
+  shown.forEach((d,i)=>{
+    const v=Math.round(daily[d]*10)/10;
+    const h=(v/max)*(H-48);
+    const x=16+gap*i+(gap-barW)/2;
+    const y=H-26-h;
+    ctx.fillStyle= d===days[days.length-1] ? '#E0A93E' : '#F5C84C';
+    roundRect(ctx,x,y,barW,h,6);
+    ctx.fill();
+    ctx.fillStyle='#5A4A3A';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
+    ctx.fillText(v,x+barW/2,y-5);
+    ctx.fillStyle='#B7AB9C';ctx.font='10px sans-serif';
+    const dd=new Date(d+'T00:00');
+    ctx.fillText(fmtDay(dd),x+barW/2,H-8);
+  });
+}
+function roundRect(ctx,x,y,w,h,r){
+  r=Math.min(r,h/2,w/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,0);
+  ctx.arcTo(x,y+h,x,y,0);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+/* ================= 清單 ================= */
+function renderList(){
+  const area=document.getElementById('listArea');
+  area.innerHTML='';
+  const items=[...entries].sort((a,b)=>b.t.localeCompare(a.t));
+  if(!items.length){area.innerHTML='<div class="empty">還沒有記錄，按下方按鈕新增 🐾</div>';return}
+
+  const groups={};
+  items.forEach(it=>{
+    const d=it.t.slice(0,10);
+    (groups[d]=groups[d]||[]).push(it);
+  });
+  Object.keys(groups).sort((a,b)=>b.localeCompare(a)).forEach(day=>{
+    const g=document.createElement('div');g.className='day-group';
+    const d=new Date(day+'T00:00');
+    const tot=Math.round(groups[day].reduce((s,e)=>s+(+e.ml||0),0)*10)/10;
+    g.innerHTML=`<div class="day-head"><span>${fmtDay(d)} (${'日一二三四五六'[d.getDay()]})</span><span>奶量合計 ${tot} ml</span></div>`;
+    groups[day].forEach(it=>{
+      const e=document.createElement('div');
+      e.className='entry';
+      const dt=new Date(it.t);
+      const parts=[];
+      if(it.ml)parts.push(`<span class="ml">${it.ml} <small>mL</small></span>`);
+      if(it.g!=null)parts.push(`<span class="gw">⚖️ ${it.g}<small>g</small></span>`);
+      if(!parts.length)parts.push('<span class="ml"><small>觀察記錄</small></span>');
+      const flags=[];
+      if(it.pee==='yes')flags.push('<span class="yes">尿✓</span>');
+      else if(it.pee==='self')flags.push('<span class="yes">自己尿✓</span>');
+      else if(it.pee==='no')flags.push('尿–');
+      if(it.poop==='yes')flags.push('<span class="poop">便💛</span>');
+      if(it.wound)flags.push(`<span class="wound">🩹 ${esc(it.wound)}</span>`);
+      e.innerHTML=`
+        <div class="time">${fmtTime(dt)}</div>
+        <div class="mid">
+          <div class="main-line">${parts.join('')}</div>
+          ${flags.length?`<div class="flags">${flags.join(' ')}</div>`:''}
+          ${it.note?`<div class="note">${esc(it.note)}</div>`:''}
+        </div>
+        <span class="who ${it.who==='媽媽'?'mama':it.who==='拔拔'?'baba':'naima'}">${esc(it.who)}</span>`;
+      e.onclick=()=>openSheet(it.id);
+      g.appendChild(e);
+    });
+    area.appendChild(g);
+  });
+}
+
+/* ================= 表單 ================= */
+const sheet=document.getElementById('sheet'),overlay=document.getElementById('overlay');
+
+function setSeg(id,val,colorMap){
+  document.querySelectorAll('#'+id+' button').forEach(b=>{
+    b.classList.remove('sel','pink','green','yellow');
+    if(b.dataset.v===val){
+      b.classList.add('sel');
+      if(colorMap&&colorMap[val])b.classList.add(colorMap[val]);
+    }
+  });
+}
+function getSeg(id){
+  const b=document.querySelector('#'+id+' .sel');
+  return b?b.dataset.v:null;
+}
+const peeColors={yes:'green',self:'green'};
+const poopColors={yes:'yellow'};
+const whoColors={'媽媽':'pink','拔拔':'green'};
+
+function bindSeg(id,colorMap){
+  document.querySelectorAll('#'+id+' button').forEach(b=>{
+    b.onclick=()=>setSeg(id,b.dataset.v,colorMap);
+  });
+}
+bindSeg('peeSeg',peeColors);
+bindSeg('poopSeg',poopColors);
+bindSeg('whoSeg',whoColors);
+
+function openSheet(id){
+  editingId=id||null;
+  const isEdit=!!id;
+  document.getElementById('sheetTitle').textContent=isEdit?'編輯記錄':'新增記錄';
+  document.getElementById('deleteBtn').style.display=isEdit?'':'none';
+
+  if(isEdit){
+    const it=entries.find(e=>e.id===id);
+    if(!it)return;
+    document.getElementById('fTime').value=it.t;
+    document.getElementById('fMl').value=it.ml??'';
+    document.getElementById('fG').value=it.g??'';
+    document.getElementById('fWound').value=it.wound||'';
+    document.getElementById('fNote').value=it.note||'';
+    setSeg('peeSeg',it.pee||'na',peeColors);
+    setSeg('poopSeg',it.poop||'no',poopColors);
+    setSeg('whoSeg',['媽媽','拔拔'].includes(it.who)?it.who:'媽媽',whoColors);
+  }else{
+    document.getElementById('fTime').value=nowLocal();
+    document.getElementById('fMl').value='';
+    document.getElementById('fG').value='';
+    document.getElementById('fWound').value='';
+    document.getElementById('fNote').value='';
+    setSeg('peeSeg','yes',peeColors);
+    setSeg('poopSeg','no',poopColors);
+    if(!getSeg('whoSeg'))setSeg('whoSeg','媽媽',whoColors);
+  }
+  sheet.classList.add('show');overlay.classList.add('show');
+}
+function closeSheet(){
+  sheet.classList.remove('show');overlay.classList.remove('show');editingId=null;
+  deleteArmed=false;
+  const b=document.getElementById('deleteBtn');
+  b.textContent='刪除這筆記錄';b.style.background='';b.style.color='';
+}
+document.getElementById('fabBtn').onclick=()=>openSheet(null);
+document.getElementById('cancelBtn').onclick=closeSheet;
+overlay.onclick=closeSheet;
+
+document.getElementById('saveBtn').onclick=async()=>{
+  const t=document.getElementById('fTime').value;
+  if(!t){toast('請選擇時間');return}
+  const mlRaw=document.getElementById('fMl').value;
+  const gRaw=document.getElementById('fG').value;
+  const ml=mlRaw===''?null:parseFloat(mlRaw);
+  const g=gRaw===''?null:parseFloat(gRaw);
+  const wound=document.getElementById('fWound').value.trim();
+  const note=document.getElementById('fNote').value.trim();
+  const pee=getSeg('peeSeg')||'na';
+  const poop=getSeg('poopSeg')||'no';
+  const who=getSeg('whoSeg')||'媽媽';
+
+  if(ml==null&&g==null&&!wound&&!note&&poop!=='yes'&&pee==='na'){
+    toast('至少填一項內容');return;
+  }
+
+  const btn=document.getElementById('saveBtn');
+  btn.disabled=true;btn.textContent='儲存中…';
+  try{
+    const id=editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+    await setDoc(doc(db,COL,id),{t,ml,g,pee,poop,wound,note,who});
+    toast(editingId?'已更新 🐾':'已儲存 🐾');
+    closeSheet();
+  }catch(e){
+    console.error('save error',e);
+    toast('儲存失敗：'+(e.message||'請檢查網路'));
+  }finally{
+    btn.disabled=false;btn.textContent='儲存';
+  }
+};
+
+document.getElementById('deleteBtn').onclick=async()=>{
+  if(!editingId)return;
+  const btn=document.getElementById('deleteBtn');
+  if(!deleteArmed){
+    deleteArmed=true;
+    btn.textContent='⚠️ 再按一次確認刪除';
+    btn.style.background='#E8927C';
+    btn.style.color='#fff';
+    setTimeout(()=>{
+      deleteArmed=false;
+      btn.textContent='刪除這筆記錄';
+      btn.style.background='';btn.style.color='';
+    },4000);
+    return;
+  }
+  try{
+    await deleteDoc(doc(db,COL,editingId));
+    toast('已刪除');
+    closeSheet();
+  }catch(e){
+    console.error('delete error',e);
+    toast('刪除失敗：'+(e.message||'請檢查網路'));
+  }
+};
+
+/* ================= 啟動 ================= */
+function renderAll(){renderStats();renderWeightChart();renderMilkChart();renderList()}
+(async()=>{
+  await seedIfEmpty();
+  startListening();
+  window.addEventListener('resize',()=>{renderWeightChart();renderMilkChart()});
+})();
+</script>
+</body>
+</html>
