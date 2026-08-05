@@ -822,12 +822,35 @@ function compressImage(file){
   });
 }
 
+/* 照片上傳者選擇小視窗 */
+let pendingPhotoFiles=null;
+function askUploader(){
+  return new Promise(resolve=>{
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;background:rgba(60,48,38,.5);z-index:80;display:flex;align-items:center;justify-content:center';
+    ov.innerHTML=`
+      <div style="background:#FBF7EF;border-radius:18px;padding:22px 20px;width:78%;max-width:300px;text-align:center">
+        <div style="font-size:15px;font-weight:800;color:#5A4A3A;margin-bottom:14px">這些照片是誰上傳的？</div>
+        <div style="display:flex;gap:10px">
+          <button data-w="媽媽" style="flex:1;padding:12px 0;border:none;border-radius:11px;background:#E8927C;color:#fff;font-size:14px;font-weight:700;font-family:inherit">媽媽</button>
+          <button data-w="拔拔" style="flex:1;padding:12px 0;border:none;border-radius:11px;background:#7FA37A;color:#fff;font-size:14px;font-weight:700;font-family:inherit">拔拔</button>
+        </div>
+        <button data-w="" style="margin-top:10px;border:none;background:none;color:#8A7A68;font-size:12px;font-family:inherit">取消</button>
+      </div>`;
+    ov.querySelectorAll('button').forEach(b=>{
+      b.onclick=()=>{document.body.removeChild(ov);resolve(b.dataset.w||null)};
+    });
+    document.body.appendChild(ov);
+  });
+}
+
 document.getElementById('photoInput').addEventListener('change',async ev=>{
   const files=[...ev.target.files];
   if(!files.length)return;
+  const who=await askUploader();
+  if(!who){ev.target.value='';return}
   const label=document.querySelector('.photo-add');
   label.classList.add('busy');
-  const who=getSeg('whoSeg')||'媽媽';
   let ok=0;
   for(const f of files){
     try{
