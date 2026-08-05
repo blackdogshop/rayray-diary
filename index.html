@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>瑞瑞照護記錄</title>
+<title>瑞瑞的成長日記</title>
 <style>
   :root{
     --milk:#FBF7EF;
@@ -26,9 +26,22 @@
   }
   .wrap{max-width:520px;margin:0 auto;padding:16px}
 
-  header{display:flex;align-items:baseline;gap:10px;padding:8px 4px 14px}
-  header h1{font-size:26px;font-weight:800;letter-spacing:2px}
-  header .age{font-size:13px;color:var(--tabby-soft)}
+  header{display:flex;align-items:center;gap:12px;padding:8px 4px 16px}
+  header .avatar{
+    width:52px;height:52px;border-radius:50%;flex-shrink:0;
+    background:#F5E9D8;border:2.5px solid var(--butter);
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+    cursor:pointer;position:relative;
+  }
+  header .avatar::after{
+    content:'📷';position:absolute;right:-2px;bottom:-2px;
+    font-size:11px;background:#fff;border-radius:50%;
+    width:18px;height:18px;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 1px 3px rgba(0,0,0,.2);
+  }
+  header .avatar svg{width:100%;height:100%}
+  header .head-text h1{font-size:22px;font-weight:800;letter-spacing:1px;line-height:1.25}
+  header .head-text .age{font-size:12px;color:var(--tabby-soft);margin-top:2px}
 
   .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
   .stat{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:12px 8px;text-align:center}
@@ -130,15 +143,78 @@
   .toast.show{opacity:1}
   .syncnote{text-align:center;font-size:11px;color:#B7AB9C;margin-top:6px}
   .syncnote.live{color:var(--leaf);font-weight:600}
+
+  /* ---------- 相簿 ---------- */
+  .photo-grid{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;
+  }
+  .photo-grid img{
+    width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;
+    cursor:pointer;display:block;background:var(--stripe);
+  }
+  .photo-add{
+    display:block;text-align:center;padding:11px 0;border-radius:11px;
+    border:1.5px dashed var(--butter-deep);color:var(--butter-deep);
+    font-size:13px;font-weight:700;cursor:pointer;
+  }
+  .photo-add.busy{opacity:.5;pointer-events:none}
+  .lightbox{
+    position:fixed;inset:0;background:rgba(30,24,18,.92);z-index:70;
+    display:none;flex-direction:column;align-items:center;justify-content:center;
+    padding:20px;
+  }
+  .lightbox.show{display:flex}
+  .lightbox img{max-width:100%;max-height:72vh;border-radius:12px}
+  .lightbox .lb-meta{color:#EDE4D6;font-size:12px;margin-top:12px;text-align:center}
+  .lightbox .lb-actions{display:flex;gap:14px;margin-top:14px}
+  .lightbox button{
+    border:none;border-radius:99px;padding:10px 22px;font-size:13px;font-weight:700;
+    font-family:inherit;cursor:pointer;
+  }
+  .lightbox .lb-close{background:#EDE4D6;color:#5A4A3A}
+  .lightbox .lb-del{background:#E8927C;color:#fff}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <span style="font-size:20px">🐾</span>
-    <h1>瑞瑞照護記錄</h1>
-    <span class="age">約 20+ 天</span>
+    <div class="avatar" id="avatarBox" title="點擊更換頭像">
+      <img id="avatarImg" src="avatar.jpg" alt="瑞瑞"
+        style="width:100%;height:100%;object-fit:cover;display:block"
+        onerror="this.style.display='none';document.getElementById('avatarFallback').style.display='block'">
+      <svg id="avatarFallback" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" style="display:none">
+        <!-- 耳朵 -->
+        <polygon points="14,26 19,8 30,20" fill="#8A7358"/>
+        <polygon points="50,26 45,8 34,20" fill="#8A7358"/>
+        <polygon points="17,23 20,12 27,20" fill="#E8A88F"/>
+        <polygon points="47,23 44,12 37,20" fill="#E8A88F"/>
+        <!-- 臉 -->
+        <circle cx="32" cy="37" r="21" fill="#A98F6E"/>
+        <!-- 虎斑紋 -->
+        <path d="M32 16 L32 24" stroke="#6E5A42" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M26 17.5 L27.5 24.5" stroke="#6E5A42" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M38 17.5 L36.5 24.5" stroke="#6E5A42" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M12.5 33 L18 34.5" stroke="#6E5A42" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M51.5 33 L46 34.5" stroke="#6E5A42" stroke-width="2.2" stroke-linecap="round"/>
+        <!-- 眼睛 -->
+        <circle cx="24.5" cy="36" r="3.4" fill="#3E3226"/>
+        <circle cx="39.5" cy="36" r="3.4" fill="#3E3226"/>
+        <circle cx="25.6" cy="34.8" r="1.1" fill="#fff"/>
+        <circle cx="40.6" cy="34.8" r="1.1" fill="#fff"/>
+        <!-- 鼻子和嘴 -->
+        <polygon points="32,42 29.6,44.4 34.4,44.4" fill="#E8927C"/>
+        <path d="M32 44.4 L32 47 M32 47 Q29 49.5 26.5 47.5 M32 47 Q35 49.5 37.5 47.5" stroke="#6E5A42" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        <!-- 鬍鬚 -->
+        <path d="M18 42 L10 41 M18 45 L10.5 46" stroke="#6E5A42" stroke-width="1.2" stroke-linecap="round"/>
+        <path d="M46 42 L54 41 M46 45 L53.5 46" stroke="#6E5A42" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="head-text">
+      <h1>瑞瑞的成長日記</h1>
+      <div class="age" id="ageLine">計算中…</div>
+    </div>
   </header>
+  <input type="file" id="avatarInput" accept="image/*" hidden>
 
   <div class="stats">
     <div class="stat ok">
@@ -163,6 +239,15 @@
   <div class="card">
     <h2>每日奶量 <span class="sub">mL・當日合計</span></h2>
     <canvas id="milkChart"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>📷 瑞瑞相簿 <span class="sub" id="photoCount"></span></h2>
+    <div class="photo-grid" id="photoGrid"><div class="empty" style="grid-column:1/-1;padding:14px 0">還沒有照片</div></div>
+    <label class="photo-add">
+      ＋ 上傳照片
+      <input type="file" id="photoInput" accept="image/*" multiple hidden>
+    </label>
   </div>
 
   <div class="hint">點任一筆記錄可以編輯或刪除</div>
@@ -235,6 +320,15 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="lightbox" id="lightbox">
+  <img id="lbImg" alt="瑞瑞照片">
+  <div class="lb-meta" id="lbMeta"></div>
+  <div class="lb-actions">
+    <button class="lb-close" id="lbClose">關閉</button>
+    <button class="lb-del" id="lbDel">刪除照片</button>
+  </div>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -354,6 +448,21 @@ function toast(msg){
   setTimeout(()=>t.classList.remove('show'),2200);
 }
 function esc(s){return String(s||'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]))}
+
+/* ================= 年齡計算 ================= */
+/* 獸醫 8/4 推估約 20 天 → 回推出生日約 2026-07-15 */
+const BIRTH_DATE=new Date('2026-07-15T00:00:00');
+const HOME_DATE=new Date('2026-08-01T00:00:00'); /* 來家裡的日子 */
+function renderAge(){
+  const now=new Date();
+  const days=Math.floor((now-BIRTH_DATE)/864e5);
+  const homeDays=Math.floor((now-HOME_DATE)/864e5)+1; /* 8/1當天算第1天 */
+  const weeks=Math.floor(days/7),rem=days%7;
+  const wTxt=weeks>0?`${weeks}週${rem>0?rem+'天':''}`:`${days}天`;
+  document.getElementById('ageLine').innerHTML=
+    `出生約 ${days} 天（${wTxt}）・來家裡第 ${homeDays} 天 🏠`+
+    `<span style="display:block;font-size:10px;color:#B7AB9C;margin-top:1px">🎂 2026/7/15 出生（推估）・🏠 2026/8/1 回家</span>`;
+}
 
 /* ================= 統計 ================= */
 function renderStats(){
@@ -644,11 +753,202 @@ document.getElementById('deleteBtn').onclick=async()=>{
   }
 };
 
+/* ================= 相簿 ================= */
+const PHOTO_COL='photos';
+let photos=[];
+let lbCurrentId=null;
+let lbDelArmed=false;
+
+function startPhotoListening(){
+  onSnapshot(collection(db,PHOTO_COL),
+    snap=>{
+      photos=snap.docs.map(d=>({id:d.id,...d.data()}))
+        .sort((a,b)=>(b.t||'').localeCompare(a.t||''));
+      renderPhotos();
+    },
+    err=>console.error('photo listen error',err)
+  );
+}
+
+function renderPhotos(){
+  const grid=document.getElementById('photoGrid');
+  document.getElementById('photoCount').textContent=photos.length?photos.length+' 張':'';
+  grid.innerHTML='';
+  if(!photos.length){
+    grid.innerHTML='<div class="empty" style="grid-column:1/-1;padding:14px 0">還沒有照片</div>';
+    return;
+  }
+  photos.forEach(p=>{
+    const img=document.createElement('img');
+    img.src=p.img;
+    img.loading='lazy';
+    img.alt='瑞瑞照片';
+    img.onclick=()=>openLightbox(p.id);
+    grid.appendChild(img);
+  });
+}
+
+/* 手機照片壓縮：長邊縮到1024、JPEG品質0.65，控制在Firestore文件限制內 */
+function compressImage(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        const MAX=1024;
+        let w=img.width,h=img.height;
+        if(Math.max(w,h)>MAX){
+          const r=MAX/Math.max(w,h);
+          w=Math.round(w*r);h=Math.round(h*r);
+        }
+        const cv=document.createElement('canvas');
+        cv.width=w;cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        let q=0.65;
+        let data=cv.toDataURL('image/jpeg',q);
+        /* 若仍太大，逐步降品質（Firestore 單文件上限 1MB，base64留安全餘裕） */
+        while(data.length>700000&&q>0.3){
+          q-=0.1;
+          data=cv.toDataURL('image/jpeg',q);
+        }
+        if(data.length>700000)reject(new Error('照片壓縮後仍太大'));
+        else resolve(data);
+      };
+      img.onerror=()=>reject(new Error('無法讀取圖片'));
+      img.src=reader.result;
+    };
+    reader.onerror=()=>reject(new Error('讀取檔案失敗'));
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById('photoInput').addEventListener('change',async ev=>{
+  const files=[...ev.target.files];
+  if(!files.length)return;
+  const label=document.querySelector('.photo-add');
+  label.classList.add('busy');
+  const who=getSeg('whoSeg')||'媽媽';
+  let ok=0;
+  for(const f of files){
+    try{
+      const img=await compressImage(f);
+      const id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+      const d=new Date();
+      const t=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      await setDoc(doc(db,PHOTO_COL,id),{t,img,who});
+      ok++;
+    }catch(e){
+      console.error('photo upload error',e);
+      toast('有照片上傳失敗：'+(e.message||''));
+    }
+  }
+  if(ok)toast(`已上傳 ${ok} 張照片 📷`);
+  label.classList.remove('busy');
+  ev.target.value='';
+});
+
+function openLightbox(id){
+  const p=photos.find(x=>x.id===id);
+  if(!p)return;
+  lbCurrentId=id;
+  document.getElementById('lbImg').src=p.img;
+  const dt=p.t?new Date(p.t):null;
+  document.getElementById('lbMeta').textContent=
+    (dt?`${fmtDay(dt)} ${fmtTime(dt)}`:'')+(p.who?`・${p.who} 上傳`:'');
+  resetLbDel();
+  document.getElementById('lightbox').classList.add('show');
+}
+function closeLightbox(){
+  document.getElementById('lightbox').classList.remove('show');
+  lbCurrentId=null;resetLbDel();
+}
+function resetLbDel(){
+  lbDelArmed=false;
+  document.getElementById('lbDel').textContent='刪除照片';
+}
+document.getElementById('lbClose').onclick=closeLightbox;
+document.getElementById('lightbox').addEventListener('click',e=>{
+  if(e.target.id==='lightbox')closeLightbox();
+});
+document.getElementById('lbDel').onclick=async()=>{
+  if(!lbCurrentId)return;
+  if(!lbDelArmed){
+    lbDelArmed=true;
+    document.getElementById('lbDel').textContent='⚠️ 再按一次確認刪除';
+    setTimeout(resetLbDel,4000);
+    return;
+  }
+  try{
+    await deleteDoc(doc(db,PHOTO_COL,lbCurrentId));
+    toast('已刪除照片');
+    closeLightbox();
+  }catch(e){
+    toast('刪除失敗：'+(e.message||''));
+  }
+};
+
+/* ================= 頭像（存雲端，點擊更換） ================= */
+function startAvatarListening(){
+  onSnapshot(doc(db,'meta','avatar'),
+    snap=>{
+      if(snap.exists()&&snap.data().img){
+        const img=document.getElementById('avatarImg');
+        img.src=snap.data().img;
+        img.style.display='block';
+        document.getElementById('avatarFallback').style.display='none';
+      }
+    },
+    err=>console.error('avatar listen error',err)
+  );
+}
+document.getElementById('avatarBox').onclick=()=>{
+  document.getElementById('avatarInput').click();
+};
+document.getElementById('avatarInput').addEventListener('change',async ev=>{
+  const f=ev.target.files[0];
+  if(!f)return;
+  try{
+    toast('頭像上傳中…');
+    const img=await compressAvatar(f);
+    await setDoc(doc(db,'meta','avatar'),{img,at:new Date().toISOString()});
+    toast('頭像已更新 🐾');
+  }catch(e){
+    console.error('avatar upload error',e);
+    toast('頭像上傳失敗：'+(e.message||''));
+  }
+  ev.target.value='';
+});
+/* 頭像壓縮：置中裁成正方形、縮到256px */
+function compressAvatar(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        const S=256;
+        const side=Math.min(img.width,img.height);
+        const sx=(img.width-side)/2,sy=(img.height-side)/2;
+        const cv=document.createElement('canvas');
+        cv.width=S;cv.height=S;
+        cv.getContext('2d').drawImage(img,sx,sy,side,side,0,0,S,S);
+        resolve(cv.toDataURL('image/jpeg',0.8));
+      };
+      img.onerror=()=>reject(new Error('無法讀取圖片'));
+      img.src=reader.result;
+    };
+    reader.onerror=()=>reject(new Error('讀取檔案失敗'));
+    reader.readAsDataURL(file);
+  });
+}
+
 /* ================= 啟動 ================= */
 function renderAll(){renderStats();renderWeightChart();renderMilkChart();renderList()}
 (async()=>{
+  renderAge();
   await seedIfEmpty();
   startListening();
+  startPhotoListening();
+  startAvatarListening();
   window.addEventListener('resize',()=>{renderWeightChart();renderMilkChart()});
 })();
 </script>
