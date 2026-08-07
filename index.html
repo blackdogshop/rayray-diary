@@ -255,6 +255,9 @@
     </div>
   </div>
 
+  <div id="medBanner" style="display:none;background:#EEF1F9;border-radius:12px;padding:9px 14px;margin-bottom:10px;font-size:13px;font-weight:700;color:#7B87B8;text-align:center"></div>
+  <div id="daySummary" style="font-size:11.5px;color:var(--tabby-soft);text-align:center;margin:-4px 0 12px"></div>
+
   <div class="card">
     <h2>體重趨勢 <span class="sub">g・尿尿後餵奶前</span></h2>
     <canvas id="weightChart"></canvas>
@@ -523,6 +526,32 @@ function renderStats(){
     card.classList.add(hrs>=48?'alert':'ok');
   }else{
     document.getElementById('statPoop').textContent='無記錄';
+  }
+
+  /* 餵藥計數：過去48小時內有吃藥記錄才顯示 */
+  const MED_PER_DAY=3;
+  const medToday=entries.filter(e=>e.t.startsWith(dkey)&&e.med).length;
+  const recent48=entries.filter(e=>(Date.now()-new Date(e.t))<48*36e5&&e.med).length;
+  const banner=document.getElementById('medBanner');
+  if(recent48>0){
+    banner.style.display='block';
+    banner.textContent=medToday>=MED_PER_DAY
+      ?`💊 今日已餵藥 ${medToday}/${MED_PER_DAY} 次 ✅`
+      :`💊 今日已餵藥 ${medToday}/${MED_PER_DAY} 次`;
+  }else{
+    banner.style.display='none';
+  }
+
+  /* 本日摘要：餵了幾次、最後一餐 */
+  const todayFeeds=entries.filter(e=>e.t.startsWith(dkey)&&e.ml>0)
+    .sort((a,b)=>b.t.localeCompare(a.t));
+  const summary=document.getElementById('daySummary');
+  if(todayFeeds.length){
+    const last=todayFeeds[0];
+    const lt=new Date(last.t);
+    summary.textContent=`今日已餵 ${todayFeeds.length} 次・最後一餐 ${fmtTime(lt)}（${last.ml}ml）`;
+  }else{
+    summary.textContent='今天還沒有餵奶記錄';
   }
 }
 
