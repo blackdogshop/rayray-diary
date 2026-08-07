@@ -824,8 +824,10 @@ function ageLabelOf(t){
   if(!t)return '未知時間';
   const days=Math.floor((new Date(t)-BIRTH_DATE)/864e5);
   if(days<0)return '出生前';
+  if(days<7)return `出生 ${days} 天`;
   if(days<70){
-    return `出生第 ${Math.floor(days/7)+1} 週`;
+    const w=Math.floor(days/7);
+    return `${w} 週大`;
   }
   const months=Math.floor(days/30.44);
   return `${months} 個月大`;
