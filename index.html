@@ -297,8 +297,21 @@
   </div>
 
   <div class="field">
-    <label>🩹 傷口／擦藥（有觀察或處理才填）</label>
-    <input type="text" id="fWound" placeholder="例如：有擦藥、痂皮翹起、滲組織液…">
+    <label>🏥 醫療（有做才填，會顯示有填的項目）</label>
+    <div style="background:#fff;border:1.5px solid var(--stripe);border-radius:11px;padding:10px 12px">
+      <div style="margin-bottom:9px">
+        <label style="font-size:11px;margin-bottom:4px">💊 吃藥</label>
+        <input type="text" id="fMed" placeholder="例如：抗生素 0.2ml" style="border:1px solid var(--stripe)">
+      </div>
+      <div style="margin-bottom:9px">
+        <label style="font-size:11px;margin-bottom:4px">🧴 擦藥</label>
+        <input type="text" id="fTopical" placeholder="例如：傷口藥膏（目前暫緩）" style="border:1px solid var(--stripe)">
+      </div>
+      <div>
+        <label style="font-size:11px;margin-bottom:4px">🩹 傷口觀察</label>
+        <input type="text" id="fWound" placeholder="例如：痂皮翹起、滲組織液…" style="border:1px solid var(--stripe)">
+      </div>
+    </div>
   </div>
 
   <div class="field">
@@ -612,6 +625,8 @@ function renderList(){
       else if(it.pee==='self')flags.push('<span class="yes">自己尿✓</span>');
       else if(it.pee==='no')flags.push('尿–');
       if(it.poop==='yes')flags.push('<span class="poop">便💛</span>');
+      if(it.med)flags.push(`<span class="wound">💊 ${esc(it.med)}</span>`);
+      if(it.topical)flags.push(`<span class="wound">🧴 ${esc(it.topical)}</span>`);
       if(it.wound)flags.push(`<span class="wound">🩹 ${esc(it.wound)}</span>`);
       e.innerHTML=`
         <div class="time">${fmtTime(dt)}</div>
@@ -669,6 +684,8 @@ function openSheet(id){
     document.getElementById('fTime').value=it.t;
     document.getElementById('fMl').value=it.ml??'';
     document.getElementById('fG').value=it.g??'';
+    document.getElementById('fMed').value=it.med||'';
+    document.getElementById('fTopical').value=it.topical||'';
     document.getElementById('fWound').value=it.wound||'';
     document.getElementById('fNote').value=it.note||'';
     setSeg('peeSeg',it.pee||'na',peeColors);
@@ -678,6 +695,8 @@ function openSheet(id){
     document.getElementById('fTime').value=nowLocal();
     document.getElementById('fMl').value='';
     document.getElementById('fG').value='';
+    document.getElementById('fMed').value='';
+    document.getElementById('fTopical').value='';
     document.getElementById('fWound').value='';
     document.getElementById('fNote').value='';
     setSeg('peeSeg','yes',peeColors);
@@ -703,13 +722,15 @@ document.getElementById('saveBtn').onclick=async()=>{
   const gRaw=document.getElementById('fG').value;
   const ml=mlRaw===''?null:parseFloat(mlRaw);
   const g=gRaw===''?null:parseFloat(gRaw);
+  const med=document.getElementById('fMed').value.trim();
+  const topical=document.getElementById('fTopical').value.trim();
   const wound=document.getElementById('fWound').value.trim();
   const note=document.getElementById('fNote').value.trim();
   const pee=getSeg('peeSeg')||'na';
   const poop=getSeg('poopSeg')||'no';
   const who=getSeg('whoSeg')||'媽媽';
 
-  if(ml==null&&g==null&&!wound&&!note&&poop!=='yes'&&pee==='na'){
+  if(ml==null&&g==null&&!med&&!topical&&!wound&&!note&&poop!=='yes'&&pee==='na'){
     toast('至少填一項內容');return;
   }
 
@@ -717,7 +738,7 @@ document.getElementById('saveBtn').onclick=async()=>{
   btn.disabled=true;btn.textContent='儲存中…';
   try{
     const id=editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,6));
-    await setDoc(doc(db,COL,id),{t,ml,g,pee,poop,wound,note,who});
+    await setDoc(doc(db,COL,id),{t,ml,g,pee,poop,med,topical,wound,note,who});
     toast(editingId?'已更新 🐾':'已儲存 🐾');
     closeSheet();
   }catch(e){
