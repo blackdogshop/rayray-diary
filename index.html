@@ -75,7 +75,9 @@
   .entry .flags{font-size:11px;color:var(--tabby-soft);margin-top:3px;display:flex;flex-wrap:wrap;gap:8px}
   .entry .flags .yes{color:var(--leaf);font-weight:600}
   .entry .flags .poop{color:var(--butter-deep);font-weight:700}
-  .entry .flags .wound{color:var(--paw);font-weight:600}
+  .entry .flags .med{color:#7B87B8;font-weight:600;background:#EEF1F9;padding:1px 7px;border-radius:99px}
+  .entry .flags .topical{color:#6D9B8A;font-weight:600;background:#E8F2EE;padding:1px 7px;border-radius:99px}
+  .entry .flags .wound{color:#C97F6D;font-weight:600;background:#FAEBE7;padding:1px 7px;border-radius:99px}
   .entry .note{font-size:11px;color:var(--tabby-soft);margin-top:3px;word-break:break-all;line-height:1.5}
   .entry .who{font-size:11px;padding:3px 8px;border-radius:99px;white-space:nowrap;background:var(--stripe);color:var(--tabby-soft);font-weight:600;margin-top:1px}
   .entry .who.mama{background:#F9E3DC;color:#C46A52}
@@ -173,6 +175,28 @@
   }
   .lightbox .lb-close{background:#EDE4D6;color:#5A4A3A}
   .lightbox .lb-del{background:#E8927C;color:#fff}
+  .lb-nav{
+    position:absolute;top:50%;transform:translateY(-50%);
+    background:rgba(237,228,214,.25);color:#EDE4D6;
+    border:none;border-radius:50%;width:40px;height:40px;
+    font-size:26px;line-height:1;cursor:pointer;z-index:2;
+    display:flex;align-items:center;justify-content:center;padding-bottom:4px;
+  }
+  .lb-prev{left:8px}
+  .lb-next{right:8px}
+  .photo-section-head{
+    font-size:12px;font-weight:800;color:var(--butter-deep);
+    margin:10px 0 7px;display:flex;align-items:center;gap:6px;
+  }
+  .photo-section-head::after{
+    content:'';flex:1;height:1px;background:var(--stripe);
+  }
+  .photo-more{
+    display:block;width:100%;text-align:center;padding:9px 0;margin-bottom:12px;
+    border:none;border-radius:11px;background:var(--stripe);
+    color:var(--tabby-soft);font-size:12px;font-weight:700;
+    font-family:inherit;cursor:pointer;
+  }
 </style>
 </head>
 <body>
@@ -335,7 +359,9 @@
 <div class="toast" id="toast"></div>
 
 <div class="lightbox" id="lightbox">
+  <button class="lb-nav lb-prev" id="lbPrev">‹</button>
   <img id="lbImg" alt="瑞瑞照片">
+  <button class="lb-nav lb-next" id="lbNext">›</button>
   <div class="lb-meta" id="lbMeta"></div>
   <div class="lb-actions">
     <button class="lb-close" id="lbClose">關閉</button>
@@ -625,8 +651,8 @@ function renderList(){
       else if(it.pee==='self')flags.push('<span class="yes">自己尿✓</span>');
       else if(it.pee==='no')flags.push('尿–');
       if(it.poop==='yes')flags.push('<span class="poop">便💛</span>');
-      if(it.med)flags.push(`<span class="wound">💊 ${esc(it.med)}</span>`);
-      if(it.topical)flags.push(`<span class="wound">🧴 ${esc(it.topical)}</span>`);
+      if(it.med)flags.push(`<span class="med">💊 ${esc(it.med)}</span>`);
+      if(it.topical)flags.push(`<span class="topical">🧴 ${esc(it.topical)}</span>`);
       if(it.wound)flags.push(`<span class="wound">🩹 ${esc(it.wound)}</span>`);
       e.innerHTML=`
         <div class="time">${fmtTime(dt)}</div>
@@ -791,22 +817,77 @@ function startPhotoListening(){
   );
 }
 
+let albumExpanded=false;
+
+/* 依上傳時間算週齡/月齡標籤 */
+function ageLabelOf(t){
+  if(!t)return '未知時間';
+  const days=Math.floor((new Date(t)-BIRTH_DATE)/864e5);
+  if(days<0)return '出生前';
+  if(days<70){
+    return `出生第 ${Math.floor(days/7)+1} 週`;
+  }
+  const months=Math.floor(days/30.44);
+  return `${months} 個月大`;
+}
+
 function renderPhotos(){
   const grid=document.getElementById('photoGrid');
   document.getElementById('photoCount').textContent=photos.length?photos.length+' 張':'';
   grid.innerHTML='';
+  /* 移除舊的展開按鈕 */
+  const oldBtn=document.getElementById('photoMoreBtn');
+  if(oldBtn)oldBtn.remove();
+
   if(!photos.length){
     grid.innerHTML='<div class="empty" style="grid-column:1/-1;padding:14px 0">還沒有照片</div>';
     return;
   }
-  photos.forEach(p=>{
-    const img=document.createElement('img');
-    img.src=p.img;
-    img.loading='lazy';
-    img.alt='瑞瑞照片';
-    img.onclick=()=>openLightbox(p.id);
-    grid.appendChild(img);
-  });
+
+  const LIMIT=6;
+  if(!albumExpanded&&photos.length>LIMIT){
+    /* 收合模式：只顯示最新6張 */
+    photos.slice(0,LIMIT).forEach(p=>grid.appendChild(makeThumb(p)));
+    const btn=document.createElement('button');
+    btn.id='photoMoreBtn';
+    btn.className='photo-more';
+    btn.textContent=`查看全部 ${photos.length} 張（依週齡分類）▾`;
+    btn.onclick=()=>{albumExpanded=true;renderPhotos()};
+    grid.after(btn);
+  }else{
+    /* 展開模式：依週齡/月齡分組 */
+    const groups={};
+    const order=[];
+    photos.forEach(p=>{
+      const lbl=ageLabelOf(p.t);
+      if(!groups[lbl]){groups[lbl]=[];order.push(lbl)}
+      groups[lbl].push(p);
+    });
+    order.forEach(lbl=>{
+      const head=document.createElement('div');
+      head.className='photo-section-head';
+      head.style.gridColumn='1/-1';
+      head.textContent=`🐾 ${lbl}`;
+      grid.appendChild(head);
+      groups[lbl].forEach(p=>grid.appendChild(makeThumb(p)));
+    });
+    if(photos.length>LIMIT){
+      const btn=document.createElement('button');
+      btn.id='photoMoreBtn';
+      btn.className='photo-more';
+      btn.textContent='收合相簿 ▴';
+      btn.onclick=()=>{albumExpanded=false;renderPhotos()};
+      grid.after(btn);
+    }
+  }
+}
+function makeThumb(p){
+  const img=document.createElement('img');
+  img.src=p.img;
+  img.loading='lazy';
+  img.alt='瑞瑞照片';
+  img.onclick=()=>openLightbox(p.id);
+  return img;
 }
 
 /* 手機照片壓縮：長邊縮到1024、JPEG品質0.65，控制在Firestore文件限制內 */
@@ -895,13 +976,44 @@ function openLightbox(id){
   const p=photos.find(x=>x.id===id);
   if(!p)return;
   lbCurrentId=id;
+  showLbPhoto(p);
+  document.getElementById('lightbox').classList.add('show');
+}
+function showLbPhoto(p){
   document.getElementById('lbImg').src=p.img;
   const dt=p.t?new Date(p.t):null;
   document.getElementById('lbMeta').textContent=
-    (dt?`${fmtDay(dt)} ${fmtTime(dt)}`:'')+(p.who?`・${p.who} 上傳`:'');
+    (dt?`${fmtDay(dt)} ${fmtTime(dt)}・${ageLabelOf(p.t)}`:'')+(p.who?`・${p.who} 上傳`:'');
   resetLbDel();
-  document.getElementById('lightbox').classList.add('show');
 }
+function lbStep(dir){
+  const idx=photos.findIndex(x=>x.id===lbCurrentId);
+  if(idx<0)return;
+  const next=idx+dir;
+  if(next<0||next>=photos.length)return;
+  lbCurrentId=photos[next].id;
+  showLbPhoto(photos[next]);
+}
+document.getElementById('lbPrev').onclick=e=>{e.stopPropagation();lbStep(-1)};
+document.getElementById('lbNext').onclick=e=>{e.stopPropagation();lbStep(1)};
+
+/* 觸控滑動切換 */
+let touchX=null;
+const lbEl=document.getElementById('lightbox');
+lbEl.addEventListener('touchstart',e=>{touchX=e.touches[0].clientX},{passive:true});
+lbEl.addEventListener('touchend',e=>{
+  if(touchX==null)return;
+  const dx=e.changedTouches[0].clientX-touchX;
+  touchX=null;
+  if(Math.abs(dx)>45)lbStep(dx>0?-1:1); /* 右滑=上一張 */
+},{passive:true});
+/* 鍵盤左右鍵（電腦用） */
+document.addEventListener('keydown',e=>{
+  if(!lbEl.classList.contains('show'))return;
+  if(e.key==='ArrowLeft')lbStep(-1);
+  if(e.key==='ArrowRight')lbStep(1);
+  if(e.key==='Escape')closeLightbox();
+});
 function closeLightbox(){
   document.getElementById('lightbox').classList.remove('show');
   lbCurrentId=null;resetLbDel();
