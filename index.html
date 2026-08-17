@@ -8,7 +8,7 @@
   :root{
     --milk:#FBF7EF;
     --tabby:#5A4A3A;
-    --tabby-soft:#8A7A68;
+    --tabby-soft:#6F5F4C;
     --stripe:#EDE4D6;
     --butter:#F5C84C;
     --butter-deep:#E0A93E;
@@ -22,7 +22,7 @@
   body{
     font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
     background:var(--milk);color:var(--tabby);
-    min-height:100vh;padding-bottom:95px;
+    min-height:100vh;padding-bottom:110px;
   }
   .wrap{max-width:520px;margin:0 auto;padding:16px}
 
@@ -56,6 +56,7 @@
   canvas{width:100%;display:block}
   #weightChart{height:150px}
   #milkChart{height:140px}
+  #foodChart{height:140px}
 
   .day-group{margin-bottom:6px}
   .day-head{font-size:12px;font-weight:700;color:var(--tabby-soft);padding:10px 4px 6px;display:flex;justify-content:space-between}
@@ -84,7 +85,7 @@
   .entry .who.baba{background:#E3EDE2;color:#5B8256}
   .entry .who.naima{background:#EAE4F2;color:#7B6A99}
   .empty{text-align:center;color:var(--tabby-soft);font-size:13px;padding:30px 0}
-  .hint{text-align:center;font-size:11px;color:#B7AB9C;margin-top:4px;margin-bottom:8px}
+  .hint{text-align:center;font-size:11px;color:#8A7C68;margin-top:4px;margin-bottom:8px}
 
   .fab{
     position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
@@ -112,9 +113,9 @@
   .field textarea{resize:vertical;min-height:56px;line-height:1.5}
   .field input:focus,.field textarea:focus{outline:2px solid var(--butter);border-color:transparent}
   .two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .seg{display:flex;gap:8px}
+  .seg{display:flex;flex-wrap:wrap;gap:8px}
   .seg button{
-    flex:1;padding:10px 0;border-radius:11px;border:1.5px solid var(--stripe);
+    flex:1 1 calc(50% - 4px);min-width:64px;padding:10px 0;border-radius:11px;border:1.5px solid var(--stripe);
     background:#fff;font-size:13px;font-weight:600;color:var(--tabby-soft);
     cursor:pointer;font-family:inherit;
   }
@@ -143,7 +144,7 @@
     max-width:88%;text-align:center;
   }
   .toast.show{opacity:1}
-  .syncnote{text-align:center;font-size:11px;color:#B7AB9C;margin-top:6px}
+  .syncnote{text-align:center;font-size:11px;color:#8A7C68;margin-top:6px}
   .syncnote.live{color:var(--leaf);font-weight:600}
 
   /* ---------- 相簿 ---------- */
@@ -268,6 +269,11 @@
     <canvas id="milkChart"></canvas>
   </div>
 
+  <div class="card" id="foodCard" style="display:none">
+    <h2>每日罐罐 <span class="sub">g・當日合計</span></h2>
+    <canvas id="foodChart"></canvas>
+  </div>
+
   <div class="card">
     <h2>📷 瑞瑞相簿 <span class="sub" id="photoCount"></span></h2>
     <div class="photo-grid" id="photoGrid"><div class="empty" style="grid-column:1/-1;padding:14px 0">還沒有照片</div></div>
@@ -287,7 +293,7 @@
 <div class="overlay" id="overlay"></div>
 <div class="sheet" id="sheet">
   <h3 id="sheetTitle">新增記錄</h3>
-  <div class="sheet-sub">奶量、體重、便便、傷口都可以在同一筆一起填，沒有的留空就好</div>
+  <div class="sheet-sub">奶量、罐罐、體重、便便、傷口都可以在同一筆一起填，沒有的留空就好</div>
 
   <div class="field">
     <label>時間</label>
@@ -303,6 +309,11 @@
       <label>⚖️ 體重 (g)</label>
       <input type="number" id="fG" inputmode="decimal" step="0.5" min="0" placeholder="沒量留空">
     </div>
+  </div>
+
+  <div class="field">
+    <label>🥫 離乳罐頭 (g)</label>
+    <input type="number" id="fFood" inputmode="decimal" step="0.5" min="0" placeholder="沒吃留空">
   </div>
 
   <div class="field">
@@ -503,7 +514,7 @@ function renderAge(){
   const wTxt=weeks>0?`${weeks}週${rem>0?rem+'天':''}`:`${days}天`;
   document.getElementById('ageLine').innerHTML=
     `出生約 ${days} 天（${wTxt}）・來家裡第 ${homeDays} 天 🏠`+
-    `<span style="display:block;font-size:10px;color:#B7AB9C;margin-top:1px">🎂 2026/7/15 出生（推估）・🏠 2026/8/1 回家</span>`;
+    `<span style="display:block;font-size:10px;color:#8A7C68;margin-top:1px">🎂 2026/7/15 出生（推估）・🏠 2026/8/1 回家</span>`;
 }
 
 /* ================= 統計 ================= */
@@ -545,13 +556,16 @@ function renderStats(){
   /* 本日摘要：餵了幾次、最後一餐 */
   const todayFeeds=entries.filter(e=>e.t.startsWith(dkey)&&e.ml>0)
     .sort((a,b)=>b.t.localeCompare(a.t));
+  const todayFood=Math.round(entries.filter(e=>e.t.startsWith(dkey))
+    .reduce((s,e)=>s+(+e.food||0),0)*10)/10;
+  const foodTxt=todayFood>0?`・🥫 罐罐 ${todayFood}g`:'';
   const summary=document.getElementById('daySummary');
   if(todayFeeds.length){
     const last=todayFeeds[0];
     const lt=new Date(last.t);
-    summary.textContent=`今日已餵 ${todayFeeds.length} 次・最後一餐 ${fmtTime(lt)}（${last.ml}ml）`;
+    summary.textContent=`今日已餵 ${todayFeeds.length} 次・最後一餐 ${fmtTime(lt)}（${last.ml}ml）`+foodTxt;
   }else{
-    summary.textContent='今天還沒有餵奶記錄';
+    summary.textContent='今天還沒有餵奶記錄'+foodTxt;
   }
 }
 
@@ -565,7 +579,7 @@ function renderWeightChart(){
   ctx.clearRect(0,0,W,H);
 
   const ws=entries.filter(e=>e.g!=null).sort((a,b)=>a.t.localeCompare(b.t));
-  if(ws.length<2){ctx.fillStyle='#B7AB9C';ctx.font='12px sans-serif';ctx.fillText('至少要兩筆體重才能畫圖',16,70);return}
+  if(ws.length<2){ctx.fillStyle='#8A7C68';ctx.font='12px sans-serif';ctx.fillText('至少要兩筆體重才能畫圖',16,70);return}
   const xs=ws.map(w=>new Date(w.t).getTime());
   const ys=ws.map(w=>w.g);
   const x0=Math.min(...xs),x1=Math.max(...xs);
@@ -597,7 +611,7 @@ function renderWeightChart(){
   ctx.textAlign='right';
   ctx.fillStyle='#5A4A3A';ctx.font='bold 12px sans-serif';
   ctx.fillText(ys[ys.length-1]+'g',Math.min(px(xs[xs.length-1])+6,W-4),py(ys[ys.length-1])-8);
-  ctx.fillStyle='#B7AB9C';ctx.font='10px sans-serif';
+  ctx.fillStyle='#8A7C68';ctx.font='10px sans-serif';
   ctx.textAlign='left';ctx.fillText(fmtDay(new Date(xs[0])),16,H-6);
   ctx.textAlign='right';ctx.fillText(fmtDay(new Date(xs[xs.length-1])),W-16,H-6);
 }
@@ -618,7 +632,7 @@ function renderMilkChart(){
     daily[d]=(daily[d]||0)+(+e.ml||0);
   });
   const days=Object.keys(daily).sort();
-  if(!days.length){ctx.fillStyle='#B7AB9C';ctx.font='12px sans-serif';ctx.fillText('還沒有奶量記錄',16,70);return}
+  if(!days.length){ctx.fillStyle='#8A7C68';ctx.font='12px sans-serif';ctx.fillText('還沒有奶量記錄',16,70);return}
   const shown=days.slice(-8);
   const max=Math.max(...shown.map(d=>daily[d]),10);
   const gap=(W-32)/shown.length;
@@ -634,7 +648,7 @@ function renderMilkChart(){
     ctx.fill();
     ctx.fillStyle='#5A4A3A';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
     ctx.fillText(v,x+barW/2,y-5);
-    ctx.fillStyle='#B7AB9C';ctx.font='10px sans-serif';
+    ctx.fillStyle='#8A7C68';ctx.font='10px sans-serif';
     const dd=new Date(d+'T00:00');
     ctx.fillText(fmtDay(dd),x+barW/2,H-8);
   });
@@ -648,6 +662,48 @@ function roundRect(ctx,x,y,w,h,r){
   ctx.arcTo(x,y+h,x,y,0);
   ctx.arcTo(x,y,x+w,y,r);
   ctx.closePath();
+}
+
+/* ================= 每日罐罐長條圖 ================= */
+function renderFoodChart(){
+  const daily={};
+  entries.forEach(e=>{
+    if(!e.food)return;
+    const d=e.t.slice(0,10);
+    daily[d]=(daily[d]||0)+(+e.food||0);
+  });
+  const days=Object.keys(daily).sort();
+  const card=document.getElementById('foodCard');
+  /* 還沒開始吃副食品時整張圖隱藏，不佔版面 */
+  if(!days.length){card.style.display='none';return}
+  card.style.display='';
+
+  const cv=document.getElementById('foodChart');
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.clientWidth,H=140;
+  cv.width=W*dpr;cv.height=H*dpr;
+  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+
+  const shown=days.slice(-8);
+  const max=Math.max(...shown.map(d=>daily[d]),10);
+  const gap=(W-32)/shown.length;
+  const barW=Math.min(36,gap-10);
+
+  shown.forEach((d,i)=>{
+    const v=Math.round(daily[d]*10)/10;
+    const h=(v/max)*(H-48);
+    const x=16+gap*i+(gap-barW)/2;
+    const y=H-26-h;
+    ctx.fillStyle= d===days[days.length-1] ? '#5E8A58' : '#7FA37A';
+    roundRect(ctx,x,y,barW,h,6);
+    ctx.fill();
+    ctx.fillStyle='#5A4A3A';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
+    ctx.fillText(v,x+barW/2,y-5);
+    ctx.fillStyle='#8A7C68';ctx.font='10px sans-serif';
+    const dd=new Date(d+'T00:00');
+    ctx.fillText(fmtDay(dd),x+barW/2,H-8);
+  });
 }
 
 /* ================= 清單 ================= */
@@ -666,13 +722,16 @@ function renderList(){
     const g=document.createElement('div');g.className='day-group';
     const d=new Date(day+'T00:00');
     const tot=Math.round(groups[day].reduce((s,e)=>s+(+e.ml||0),0)*10)/10;
-    g.innerHTML=`<div class="day-head"><span>${fmtDay(d)} (${'日一二三四五六'[d.getDay()]})</span><span>奶量合計 ${tot} ml</span></div>`;
+    const totFood=Math.round(groups[day].reduce((s,e)=>s+(+e.food||0),0)*10)/10;
+    const totTxt=`奶量合計 ${tot} ml`+(totFood>0?`・罐罐 ${totFood} g`:'');
+    g.innerHTML=`<div class="day-head"><span>${fmtDay(d)} (${'日一二三四五六'[d.getDay()]})</span><span>${totTxt}</span></div>`;
     groups[day].forEach(it=>{
       const e=document.createElement('div');
       e.className='entry';
       const dt=new Date(it.t);
       const parts=[];
       if(it.ml)parts.push(`<span class="ml">${it.ml} <small>mL</small></span>`);
+      if(it.food)parts.push(`<span class="ml" style="color:var(--leaf)">🥫 ${it.food}<small>g</small></span>`);
       if(it.g!=null)parts.push(`<span class="gw">⚖️ ${it.g}<small>g</small></span>`);
       if(!parts.length)parts.push('<span class="ml"><small>觀察記錄</small></span>');
       const flags=[];
@@ -704,7 +763,9 @@ const sheet=document.getElementById('sheet'),overlay=document.getElementById('ov
 function setSeg(id,val,colorMap){
   document.querySelectorAll('#'+id+' button').forEach(b=>{
     b.classList.remove('sel','pink','green','yellow');
-    if(b.dataset.v===val){
+    const on=b.dataset.v===val;
+    b.setAttribute('aria-pressed',on?'true':'false');
+    if(on){
       b.classList.add('sel');
       if(colorMap&&colorMap[val])b.classList.add(colorMap[val]);
     }
@@ -739,6 +800,7 @@ function openSheet(id){
     document.getElementById('fTime').value=it.t;
     document.getElementById('fMl').value=it.ml??'';
     document.getElementById('fG').value=it.g??'';
+    document.getElementById('fFood').value=it.food??'';
     document.getElementById('fMed').value=it.med||'';
     document.getElementById('fTopical').value=it.topical||'';
     document.getElementById('fWound').value=it.wound||'';
@@ -750,6 +812,7 @@ function openSheet(id){
     document.getElementById('fTime').value=nowLocal();
     document.getElementById('fMl').value='';
     document.getElementById('fG').value='';
+    document.getElementById('fFood').value='';
     document.getElementById('fMed').value='';
     document.getElementById('fTopical').value='';
     document.getElementById('fWound').value='';
@@ -775,8 +838,10 @@ document.getElementById('saveBtn').onclick=async()=>{
   if(!t){toast('請選擇時間');return}
   const mlRaw=document.getElementById('fMl').value;
   const gRaw=document.getElementById('fG').value;
+  const foodRaw=document.getElementById('fFood').value;
   const ml=mlRaw===''?null:parseFloat(mlRaw);
   const g=gRaw===''?null:parseFloat(gRaw);
+  const food=foodRaw===''?null:parseFloat(foodRaw);
   const med=document.getElementById('fMed').value.trim();
   const topical=document.getElementById('fTopical').value.trim();
   const wound=document.getElementById('fWound').value.trim();
@@ -785,7 +850,7 @@ document.getElementById('saveBtn').onclick=async()=>{
   const poop=getSeg('poopSeg')||'no';
   const who=getSeg('whoSeg')||'媽媽';
 
-  if(ml==null&&g==null&&!med&&!topical&&!wound&&!note&&poop!=='yes'&&pee==='na'){
+  if(ml==null&&g==null&&food==null&&!med&&!topical&&!wound&&!note&&poop!=='yes'&&pee==='na'){
     toast('至少填一項內容');return;
   }
 
@@ -793,7 +858,7 @@ document.getElementById('saveBtn').onclick=async()=>{
   btn.disabled=true;btn.textContent='儲存中…';
   try{
     const id=editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,6));
-    await setDoc(doc(db,COL,id),{t,ml,g,pee,poop,med,topical,wound,note,who});
+    await setDoc(doc(db,COL,id),{t,ml,g,food,pee,poop,med,topical,wound,note,who});
     toast(editingId?'已更新 🐾':'已儲存 🐾');
     closeSheet();
   }catch(e){
@@ -1129,14 +1194,14 @@ function compressAvatar(file){
 }
 
 /* ================= 啟動 ================= */
-function renderAll(){renderStats();renderWeightChart();renderMilkChart();renderList()}
+function renderAll(){renderStats();renderWeightChart();renderMilkChart();renderFoodChart();renderList()}
 (async()=>{
   renderAge();
   await seedIfEmpty();
   startListening();
   startPhotoListening();
   startAvatarListening();
-  window.addEventListener('resize',()=>{renderWeightChart();renderMilkChart()});
+  window.addEventListener('resize',()=>{renderWeightChart();renderMilkChart();renderFoodChart()});
 })();
 </script>
 </body>
