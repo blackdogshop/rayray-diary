@@ -94,6 +94,7 @@
   .entry .flags .med{color:#7B87B8;font-weight:600;background:#EEF1F9;padding:1px 7px;border-radius:99px}
   .entry .flags .topical{color:#6D9B8A;font-weight:600;background:#E8F2EE;padding:1px 7px;border-radius:99px}
   .entry .flags .wound{color:#C97F6D;font-weight:600;background:#FAEBE7;padding:1px 7px;border-radius:99px}
+  .entry .flags .vaccine{color:#A96A2E;font-weight:600;background:#F7EBDD;padding:1px 7px;border-radius:99px}
   .entry .note{font-size:11px;color:var(--tabby-soft);margin-top:3px;word-break:break-all;line-height:1.5}
   .entry .who{font-size:11px;padding:3px 8px;border-radius:99px;white-space:nowrap;background:var(--stripe);color:var(--tabby-soft);font-weight:600;margin-top:1px}
   .entry .who.mama{background:#F9E3DC;color:#C46A52}
@@ -374,9 +375,13 @@
         <label style="font-size:11px;margin-bottom:4px">🧴 擦藥</label>
         <input type="text" id="fTopical" placeholder="例如：傷口藥膏（目前暫緩）" style="border:1px solid var(--stripe)">
       </div>
-      <div>
+      <div style="margin-bottom:9px">
         <label style="font-size:11px;margin-bottom:4px">🩹 傷口觀察</label>
         <input type="text" id="fWound" placeholder="例如：痂皮翹起、滲組織液…" style="border:1px solid var(--stripe)">
+      </div>
+      <div>
+        <label style="font-size:11px;margin-bottom:4px">💉 預防針 / 其他醫療</label>
+        <input type="text" id="fVaccine" placeholder="例如：第一劑三合一、驅蟲、下次回診 9/5" style="border:1px solid var(--stripe)">
       </div>
     </div>
   </div>
@@ -765,6 +770,7 @@ function makeEntryEl(it){
   if(it.med)flags.push(`<span class="med">💊 ${esc(it.med)}</span>`);
   if(it.topical)flags.push(`<span class="topical">🧴 ${esc(it.topical)}</span>`);
   if(it.wound)flags.push(`<span class="wound">🩹 ${esc(it.wound)}</span>`);
+  if(it.vaccine)flags.push(`<span class="vaccine">💉 ${esc(it.vaccine)}</span>`);
   e.innerHTML=`
     <div class="time">${fmtTime(dt)}</div>
     <div class="mid">
@@ -822,7 +828,7 @@ const MED_SHOW=4; /* 收合時顯示最近幾筆 */
 function renderMedList(){
   const card=document.getElementById('medCard');
   const list=document.getElementById('medList');
-  const meds=entries.filter(e=>e.med||e.topical||e.wound)
+  const meds=entries.filter(e=>e.med||e.topical||e.wound||e.vaccine)
     .sort((a,b)=>b.t.localeCompare(a.t));
   if(!meds.length){card.style.display='none';return}
   card.style.display='';
@@ -838,6 +844,7 @@ function renderMedList(){
     if(it.med)tags.push(`<span class="med">💊 ${esc(it.med)}</span>`);
     if(it.topical)tags.push(`<span class="topical">🧴 ${esc(it.topical)}</span>`);
     if(it.wound)tags.push(`<span class="wound">🩹 ${esc(it.wound)}</span>`);
+    if(it.vaccine)tags.push(`<span class="vaccine">💉 ${esc(it.vaccine)}</span>`);
     el.innerHTML=`
       <div class="time" style="min-width:62px;font-size:12px">${fmtDay(dt)}<br><span style="font-weight:400;color:var(--tabby-soft)">${fmtTime(dt)}</span></div>
       <div class="mid">
@@ -905,6 +912,7 @@ function openSheet(id){
     document.getElementById('fMed').value=it.med||'';
     document.getElementById('fTopical').value=it.topical||'';
     document.getElementById('fWound').value=it.wound||'';
+    document.getElementById('fVaccine').value=it.vaccine||'';
     document.getElementById('fNote').value=it.note||'';
     setSeg('peeSeg',it.pee||'na',peeColors);
     setSeg('poopSeg',it.poop||'no',poopColors);
@@ -917,6 +925,7 @@ function openSheet(id){
     document.getElementById('fMed').value='';
     document.getElementById('fTopical').value='';
     document.getElementById('fWound').value='';
+    document.getElementById('fVaccine').value='';
     document.getElementById('fNote').value='';
     setSeg('peeSeg','self',peeColors);
     setSeg('poopSeg','no',poopColors);
@@ -946,12 +955,13 @@ document.getElementById('saveBtn').onclick=async()=>{
   const med=document.getElementById('fMed').value.trim();
   const topical=document.getElementById('fTopical').value.trim();
   const wound=document.getElementById('fWound').value.trim();
+  const vaccine=document.getElementById('fVaccine').value.trim();
   const note=document.getElementById('fNote').value.trim();
   const pee=getSeg('peeSeg')||'na';
   const poop=getSeg('poopSeg')||'no';
   const who=getSeg('whoSeg')||'媽媽';
 
-  if(ml==null&&g==null&&food==null&&!med&&!topical&&!wound&&!note&&poop!=='yes'&&pee==='na'){
+  if(ml==null&&g==null&&food==null&&!med&&!topical&&!wound&&!vaccine&&!note&&poop!=='yes'&&pee==='na'){
     toast('至少填一項內容');return;
   }
 
@@ -959,7 +969,7 @@ document.getElementById('saveBtn').onclick=async()=>{
   btn.disabled=true;btn.textContent='儲存中…';
   try{
     const id=editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,6));
-    await setDoc(doc(db,COL,id),{t,ml,g,food,pee,poop,med,topical,wound,note,who});
+    await setDoc(doc(db,COL,id),{t,ml,g,food,pee,poop,med,topical,wound,vaccine,note,who});
     toast(editingId?'已更新 🐾':'已儲存 🐾');
     closeSheet();
   }catch(e){
