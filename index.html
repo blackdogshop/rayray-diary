@@ -319,8 +319,8 @@
   <div class="field">
     <label>💧 尿尿</label>
     <div class="seg" id="peeSeg">
-      <button data-v="yes">有</button>
       <button data-v="self">自己尿</button>
+      <button data-v="yes">有</button>
       <button data-v="no">沒有</button>
       <button data-v="na">未確認</button>
     </div>
@@ -817,7 +817,7 @@ function openSheet(id){
     document.getElementById('fTopical').value='';
     document.getElementById('fWound').value='';
     document.getElementById('fNote').value='';
-    setSeg('peeSeg','yes',peeColors);
+    setSeg('peeSeg','self',peeColors);
     setSeg('poopSeg','no',poopColors);
     if(!getSeg('whoSeg'))setSeg('whoSeg','媽媽',whoColors);
   }
