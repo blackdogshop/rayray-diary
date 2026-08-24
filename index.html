@@ -49,6 +49,14 @@
   .stat .lbl{font-size:11px;color:var(--tabby-soft);margin-top:3px}
   .stat.alert .val{color:var(--paw)}
   .stat.ok .val{color:var(--leaf)}
+  .stat .sub2{font-size:10px;color:var(--leaf);font-weight:700;margin-top:2px;line-height:1.1}
+  .range-toggle{display:flex;gap:6px;margin:0 0 10px}
+  .range-toggle button{
+    padding:5px 12px;border-radius:99px;border:1.5px solid var(--stripe);
+    background:#fff;font-size:11px;font-weight:700;color:var(--tabby-soft);
+    cursor:pointer;font-family:inherit;
+  }
+  .range-toggle button.sel{background:var(--butter);border-color:var(--butter);color:var(--tabby)}
 
   .card{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
   .card h2{font-size:14px;font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
@@ -249,6 +257,7 @@
     <div class="stat">
       <div class="val" id="statMilk">–</div>
       <div class="lbl">今日奶量</div>
+      <div class="sub2" id="statMilkFood"></div>
     </div>
     <div class="stat" id="statPoopCard">
       <div class="val" id="statPoop">–</div>
@@ -261,6 +270,11 @@
 
   <div class="card">
     <h2>體重趨勢 <span class="sub">g・尿尿後餵奶前</span></h2>
+    <div class="range-toggle" id="wRange">
+      <button data-d="7" class="sel">最近7天</button>
+      <button data-d="14">14天</button>
+      <button data-d="0">全部</button>
+    </div>
     <canvas id="weightChart"></canvas>
   </div>
 
@@ -272,6 +286,11 @@
   <div class="card" id="foodCard" style="display:none">
     <h2>每日罐罐 <span class="sub">g・當日合計</span></h2>
     <canvas id="foodChart"></canvas>
+  </div>
+
+  <div class="card" id="medCard" style="display:none">
+    <h2>🩹 醫療 / 傷口紀錄 <span class="sub" id="medCount"></span></h2>
+    <div id="medList"></div>
   </div>
 
   <div class="card">
@@ -559,6 +578,7 @@ function renderStats(){
   const todayFood=Math.round(entries.filter(e=>e.t.startsWith(dkey))
     .reduce((s,e)=>s+(+e.food||0),0)*10)/10;
   const foodTxt=todayFood>0?`・🥫 罐罐 ${todayFood}g`:'';
+  document.getElementById('statMilkFood').textContent=todayFood>0?`＋🥫 ${todayFood}g`:'';
   const summary=document.getElementById('daySummary');
   if(todayFeeds.length){
     const last=todayFeeds[0];
@@ -570,6 +590,7 @@ function renderStats(){
 }
 
 /* ================= 體重折線圖 ================= */
+let weightRange=7; /* 顯示天數，0=全部 */
 function renderWeightChart(){
   const cv=document.getElementById('weightChart');
   const dpr=window.devicePixelRatio||1;
@@ -578,7 +599,13 @@ function renderWeightChart(){
   const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
   ctx.clearRect(0,0,W,H);
 
-  const ws=entries.filter(e=>e.g!=null).sort((a,b)=>a.t.localeCompare(b.t));
+  let ws=entries.filter(e=>e.g!=null).sort((a,b)=>a.t.localeCompare(b.t));
+  /* 依選取的時間範圍過濾；若範圍內不足兩筆則退回全部，避免空圖 */
+  if(weightRange>0){
+    const cutoff=Date.now()-weightRange*864e5;
+    const f=ws.filter(w=>new Date(w.t).getTime()>=cutoff);
+    if(f.length>=2)ws=f;
+  }
   if(ws.length<2){ctx.fillStyle='#8A7C68';ctx.font='12px sans-serif';ctx.fillText('至少要兩筆體重才能畫圖',16,70);return}
   const xs=ws.map(w=>new Date(w.t).getTime());
   const ys=ws.map(w=>w.g);
@@ -707,6 +734,38 @@ function renderFoodChart(){
 }
 
 /* ================= 清單 ================= */
+/* 單筆記錄的 DOM，清單與醫療區共用 */
+function makeEntryEl(it){
+  const e=document.createElement('div');
+  e.className='entry';
+  const dt=new Date(it.t);
+  const parts=[];
+  if(it.ml)parts.push(`<span class="ml">${it.ml} <small>mL</small></span>`);
+  if(it.food)parts.push(`<span class="ml" style="color:var(--leaf)">🥫 ${it.food}<small>g</small></span>`);
+  if(it.g!=null)parts.push(`<span class="gw">⚖️ ${it.g}<small>g</small></span>`);
+  if(!parts.length)parts.push('<span class="ml"><small>觀察記錄</small></span>');
+  const flags=[];
+  if(it.pee==='yes')flags.push('<span class="yes">尿✓</span>');
+  else if(it.pee==='self')flags.push('<span class="yes">自己尿✓</span>');
+  else if(it.pee==='no')flags.push('尿–');
+  if(it.poop==='yes')flags.push('<span class="poop">便💛</span>');
+  if(it.med)flags.push(`<span class="med">💊 ${esc(it.med)}</span>`);
+  if(it.topical)flags.push(`<span class="topical">🧴 ${esc(it.topical)}</span>`);
+  if(it.wound)flags.push(`<span class="wound">🩹 ${esc(it.wound)}</span>`);
+  e.innerHTML=`
+    <div class="time">${fmtTime(dt)}</div>
+    <div class="mid">
+      <div class="main-line">${parts.join('')}</div>
+      ${flags.length?`<div class="flags">${flags.join(' ')}</div>`:''}
+      ${it.note?`<div class="note">${esc(it.note)}</div>`:''}
+    </div>
+    <span class="who ${it.who==='媽媽'?'mama':it.who==='拔拔'?'baba':'naima'}">${esc(it.who)}</span>`;
+  e.onclick=()=>openSheet(it.id);
+  return e;
+}
+
+let listExpanded=false;
+const LIST_DAYS=4; /* 收合時預設顯示最近幾天 */
 function renderList(){
   const area=document.getElementById('listArea');
   area.innerHTML='';
@@ -718,43 +777,72 @@ function renderList(){
     const d=it.t.slice(0,10);
     (groups[d]=groups[d]||[]).push(it);
   });
-  Object.keys(groups).sort((a,b)=>b.localeCompare(a)).forEach(day=>{
+  const allDays=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+  const collapsed=!listExpanded&&allDays.length>LIST_DAYS;
+  const days=collapsed?allDays.slice(0,LIST_DAYS):allDays;
+
+  days.forEach(day=>{
     const g=document.createElement('div');g.className='day-group';
     const d=new Date(day+'T00:00');
     const tot=Math.round(groups[day].reduce((s,e)=>s+(+e.ml||0),0)*10)/10;
     const totFood=Math.round(groups[day].reduce((s,e)=>s+(+e.food||0),0)*10)/10;
     const totTxt=`奶量合計 ${tot} ml`+(totFood>0?`・罐罐 ${totFood} g`:'');
     g.innerHTML=`<div class="day-head"><span>${fmtDay(d)} (${'日一二三四五六'[d.getDay()]})</span><span>${totTxt}</span></div>`;
-    groups[day].forEach(it=>{
-      const e=document.createElement('div');
-      e.className='entry';
-      const dt=new Date(it.t);
-      const parts=[];
-      if(it.ml)parts.push(`<span class="ml">${it.ml} <small>mL</small></span>`);
-      if(it.food)parts.push(`<span class="ml" style="color:var(--leaf)">🥫 ${it.food}<small>g</small></span>`);
-      if(it.g!=null)parts.push(`<span class="gw">⚖️ ${it.g}<small>g</small></span>`);
-      if(!parts.length)parts.push('<span class="ml"><small>觀察記錄</small></span>');
-      const flags=[];
-      if(it.pee==='yes')flags.push('<span class="yes">尿✓</span>');
-      else if(it.pee==='self')flags.push('<span class="yes">自己尿✓</span>');
-      else if(it.pee==='no')flags.push('尿–');
-      if(it.poop==='yes')flags.push('<span class="poop">便💛</span>');
-      if(it.med)flags.push(`<span class="med">💊 ${esc(it.med)}</span>`);
-      if(it.topical)flags.push(`<span class="topical">🧴 ${esc(it.topical)}</span>`);
-      if(it.wound)flags.push(`<span class="wound">🩹 ${esc(it.wound)}</span>`);
-      e.innerHTML=`
-        <div class="time">${fmtTime(dt)}</div>
-        <div class="mid">
-          <div class="main-line">${parts.join('')}</div>
-          ${flags.length?`<div class="flags">${flags.join(' ')}</div>`:''}
-          ${it.note?`<div class="note">${esc(it.note)}</div>`:''}
-        </div>
-        <span class="who ${it.who==='媽媽'?'mama':it.who==='拔拔'?'baba':'naima'}">${esc(it.who)}</span>`;
-      e.onclick=()=>openSheet(it.id);
-      g.appendChild(e);
-    });
+    groups[day].forEach(it=>g.appendChild(makeEntryEl(it)));
     area.appendChild(g);
   });
+
+  if(allDays.length>LIST_DAYS){
+    const btn=document.createElement('button');
+    btn.className='photo-more';
+    btn.textContent=collapsed
+      ?`查看全部 ${allDays.length} 天記錄 ▾`
+      :'收合記錄 ▴';
+    btn.onclick=()=>{listExpanded=!listExpanded;renderList()};
+    area.appendChild(btn);
+  }
+}
+
+/* ================= 醫療 / 傷口紀錄 ================= */
+let medExpanded=false;
+const MED_SHOW=4; /* 收合時顯示最近幾筆 */
+function renderMedList(){
+  const card=document.getElementById('medCard');
+  const list=document.getElementById('medList');
+  const meds=entries.filter(e=>e.med||e.topical||e.wound)
+    .sort((a,b)=>b.t.localeCompare(a.t));
+  if(!meds.length){card.style.display='none';return}
+  card.style.display='';
+  document.getElementById('medCount').textContent=meds.length+' 筆';
+  list.innerHTML='';
+
+  const collapsed=!medExpanded&&meds.length>MED_SHOW;
+  (collapsed?meds.slice(0,MED_SHOW):meds).forEach(it=>{
+    const el=document.createElement('div');
+    el.className='entry';
+    const dt=new Date(it.t);
+    const tags=[];
+    if(it.med)tags.push(`<span class="med">💊 ${esc(it.med)}</span>`);
+    if(it.topical)tags.push(`<span class="topical">🧴 ${esc(it.topical)}</span>`);
+    if(it.wound)tags.push(`<span class="wound">🩹 ${esc(it.wound)}</span>`);
+    el.innerHTML=`
+      <div class="time" style="min-width:62px;font-size:12px">${fmtDay(dt)}<br><span style="font-weight:400;color:var(--tabby-soft)">${fmtTime(dt)}</span></div>
+      <div class="mid">
+        <div class="flags" style="margin-top:0">${tags.join(' ')}</div>
+        ${it.note?`<div class="note">${esc(it.note)}</div>`:''}
+      </div>`;
+    el.onclick=()=>openSheet(it.id);
+    list.appendChild(el);
+  });
+
+  if(meds.length>MED_SHOW){
+    const btn=document.createElement('button');
+    btn.className='photo-more';
+    btn.style.marginTop='4px';
+    btn.textContent=collapsed?`查看全部 ${meds.length} 筆 ▾`:'收合 ▴';
+    btn.onclick=()=>{medExpanded=!medExpanded;renderMedList()};
+    list.appendChild(btn);
+  }
 }
 
 /* ================= 表單 ================= */
@@ -1194,7 +1282,16 @@ function compressAvatar(file){
 }
 
 /* ================= 啟動 ================= */
-function renderAll(){renderStats();renderWeightChart();renderMilkChart();renderFoodChart();renderList()}
+function renderAll(){renderStats();renderWeightChart();renderMilkChart();renderFoodChart();renderMedList();renderList()}
+
+/* 體重圖時間範圍切換 */
+document.querySelectorAll('#wRange button').forEach(b=>{
+  b.onclick=()=>{
+    weightRange=+b.dataset.d;
+    document.querySelectorAll('#wRange button').forEach(x=>x.classList.toggle('sel',x===b));
+    renderWeightChart();
+  };
+});
 (async()=>{
   renderAge();
   await seedIfEmpty();
