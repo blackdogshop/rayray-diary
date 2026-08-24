@@ -344,10 +344,8 @@
   <div class="field">
     <label>💧 尿尿</label>
     <div class="seg" id="peeSeg">
-      <button data-v="self">自己尿</button>
       <button data-v="yes">有</button>
       <button data-v="no">沒有</button>
-      <button data-v="na">未確認</button>
     </div>
   </div>
 
@@ -866,7 +864,7 @@ function openSheet(id){
     document.getElementById('fWound').value=it.wound||'';
     document.getElementById('fVaccine').value=it.vaccine||'';
     document.getElementById('fNote').value=it.note||'';
-    setSeg('peeSeg',it.pee||'na',peeColors);
+    setSeg('peeSeg',it.pee==='no'?'no':'yes',peeColors);
     setSeg('poopSeg',it.poop||'no',poopColors);
     setSeg('whoSeg',['媽媽','拔拔'].includes(it.who)?it.who:'媽媽',whoColors);
   }else{
@@ -879,7 +877,7 @@ function openSheet(id){
     document.getElementById('fWound').value='';
     document.getElementById('fVaccine').value='';
     document.getElementById('fNote').value='';
-    setSeg('peeSeg','self',peeColors);
+    setSeg('peeSeg','yes',peeColors);
     setSeg('poopSeg','no',poopColors);
     if(!getSeg('whoSeg'))setSeg('whoSeg','媽媽',whoColors);
   }
