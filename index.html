@@ -57,6 +57,13 @@
     cursor:pointer;font-family:inherit;
   }
   .range-toggle button.sel{background:var(--butter);border-color:var(--butter);color:var(--tabby)}
+  .chart-wrap{position:relative}
+  .chart-tip{
+    position:absolute;display:none;pointer-events:none;z-index:5;
+    background:var(--tabby);color:#fff;font-size:11px;font-weight:700;
+    padding:5px 9px;border-radius:8px;white-space:nowrap;line-height:1.35;text-align:center;
+    box-shadow:0 2px 8px rgba(90,74,58,.25);
+  }
 
   .card{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
   .card h2{font-size:14px;font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
@@ -275,7 +282,10 @@
       <button data-d="14">14天</button>
       <button data-d="0">全部</button>
     </div>
-    <canvas id="weightChart"></canvas>
+    <div class="chart-wrap">
+      <canvas id="weightChart"></canvas>
+      <div class="chart-tip" id="wTip"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -591,6 +601,7 @@ function renderStats(){
 
 /* ================= 體重折線圖 ================= */
 let weightRange=7; /* 顯示天數，0=全部 */
+let weightPoints=[]; /* 目前繪製的資料點螢幕座標，供 hover 提示用 */
 function renderWeightChart(){
   const cv=document.getElementById('weightChart');
   const dpr=window.devicePixelRatio||1;
@@ -628,10 +639,12 @@ function renderWeightChart(){
   ctx.beginPath();
   ws.forEach((w,i)=>{const x=px(xs[i]),y=py(ys[i]);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
   ctx.strokeStyle='#E0A93E';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.stroke();
+  weightPoints=[];
   ws.forEach((w,i)=>{
     ctx.beginPath();ctx.arc(px(xs[i]),py(ys[i]),3,0,7);
     ctx.fillStyle='#fff';ctx.fill();
     ctx.strokeStyle='#E0A93E';ctx.lineWidth=2;ctx.stroke();
+    weightPoints.push({x:px(xs[i]),y:py(ys[i]),g:ys[i],t:w.t});
   });
   ctx.fillStyle='#8A7A68';ctx.font='11px sans-serif';ctx.textAlign='left';
   ctx.fillText(ys[0]+'g',px(xs[0])-6,py(ys[0])-8);
@@ -1292,6 +1305,30 @@ document.querySelectorAll('#wRange button').forEach(b=>{
     renderWeightChart();
   };
 });
+
+/* 體重圖 hover / 觸控提示：顯示最接近的資料點體重 */
+(function(){
+  const cv=document.getElementById('weightChart');
+  const tip=document.getElementById('wTip');
+  if(!cv||!tip)return;
+  function show(clientX){
+    if(!weightPoints.length){tip.style.display='none';return}
+    const rect=cv.getBoundingClientRect();
+    const x=clientX-rect.left;
+    let best=weightPoints[0],bd=Infinity;
+    weightPoints.forEach(p=>{const d=Math.abs(p.x-x);if(d<bd){bd=d;best=p}});
+    const dt=new Date(best.t);
+    tip.innerHTML=`${fmtDay(dt)} ${fmtTime(dt)}<br><b>${best.g} g</b>`;
+    tip.style.display='block';
+    let left=best.x-tip.offsetWidth/2;
+    left=Math.max(2,Math.min(left,cv.clientWidth-tip.offsetWidth-2));
+    tip.style.left=left+'px';
+    tip.style.top=Math.max(2,best.y-tip.offsetHeight-10)+'px';
+  }
+  cv.addEventListener('pointermove',e=>show(e.clientX));
+  cv.addEventListener('pointerdown',e=>show(e.clientX));
+  cv.addEventListener('pointerleave',()=>tip.style.display='none');
+})();
 (async()=>{
   renderAge();
   await seedIfEmpty();
