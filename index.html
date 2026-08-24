@@ -299,11 +299,6 @@
     <canvas id="foodChart"></canvas>
   </div>
 
-  <div class="card" id="medCard" style="display:none">
-    <h2>🩹 醫療 / 傷口紀錄 <span class="sub" id="medCount"></span></h2>
-    <div id="medList"></div>
-  </div>
-
   <div class="card">
     <h2>📷 瑞瑞相簿 <span class="sub" id="photoCount"></span></h2>
     <div class="photo-grid" id="photoGrid"><div class="empty" style="grid-column:1/-1;padding:14px 0">還沒有照片</div></div>
@@ -822,49 +817,6 @@ function renderList(){
   }
 }
 
-/* ================= 醫療 / 傷口紀錄 ================= */
-let medExpanded=false;
-const MED_SHOW=4; /* 收合時顯示最近幾筆 */
-function renderMedList(){
-  const card=document.getElementById('medCard');
-  const list=document.getElementById('medList');
-  const meds=entries.filter(e=>e.med||e.topical||e.wound||e.vaccine)
-    .sort((a,b)=>b.t.localeCompare(a.t));
-  if(!meds.length){card.style.display='none';return}
-  card.style.display='';
-  document.getElementById('medCount').textContent=meds.length+' 筆';
-  list.innerHTML='';
-
-  const collapsed=!medExpanded&&meds.length>MED_SHOW;
-  (collapsed?meds.slice(0,MED_SHOW):meds).forEach(it=>{
-    const el=document.createElement('div');
-    el.className='entry';
-    const dt=new Date(it.t);
-    const tags=[];
-    if(it.med)tags.push(`<span class="med">💊 ${esc(it.med)}</span>`);
-    if(it.topical)tags.push(`<span class="topical">🧴 ${esc(it.topical)}</span>`);
-    if(it.wound)tags.push(`<span class="wound">🩹 ${esc(it.wound)}</span>`);
-    if(it.vaccine)tags.push(`<span class="vaccine">💉 ${esc(it.vaccine)}</span>`);
-    el.innerHTML=`
-      <div class="time" style="min-width:62px;font-size:12px">${fmtDay(dt)}<br><span style="font-weight:400;color:var(--tabby-soft)">${fmtTime(dt)}</span></div>
-      <div class="mid">
-        <div class="flags" style="margin-top:0">${tags.join(' ')}</div>
-        ${it.note?`<div class="note">${esc(it.note)}</div>`:''}
-      </div>`;
-    el.onclick=()=>openSheet(it.id);
-    list.appendChild(el);
-  });
-
-  if(meds.length>MED_SHOW){
-    const btn=document.createElement('button');
-    btn.className='photo-more';
-    btn.style.marginTop='4px';
-    btn.textContent=collapsed?`查看全部 ${meds.length} 筆 ▾`:'收合 ▴';
-    btn.onclick=()=>{medExpanded=!medExpanded;renderMedList()};
-    list.appendChild(btn);
-  }
-}
-
 /* ================= 表單 ================= */
 const sheet=document.getElementById('sheet'),overlay=document.getElementById('overlay');
 
@@ -1305,7 +1257,7 @@ function compressAvatar(file){
 }
 
 /* ================= 啟動 ================= */
-function renderAll(){renderStats();renderWeightChart();renderMilkChart();renderFoodChart();renderMedList();renderList()}
+function renderAll(){renderStats();renderWeightChart();renderMilkChart();renderFoodChart();renderList()}
 
 /* 體重圖時間範圍切換 */
 document.querySelectorAll('#wRange button').forEach(b=>{
