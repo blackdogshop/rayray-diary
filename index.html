@@ -77,8 +77,7 @@
   .card h2 .sub{font-size:11px;font-weight:400;color:var(--tabby-soft)}
   canvas{width:100%;display:block}
   #weightChart{height:150px}
-  #milkChart{height:140px}
-  #foodChart{height:140px}
+  #nutritionChart{height:160px}
 
   .day-group{margin-bottom:6px}
   .day-head{font-size:12px;font-weight:700;color:var(--tabby-soft);padding:10px 4px 6px;display:flex;justify-content:space-between}
@@ -265,6 +264,7 @@
       <h1>瑞瑞的成長日記</h1>
       <div class="age" id="ageLine">計算中…</div>
     </div>
+    <button id="settingsBtn" title="食物設定" style="margin-left:auto;background:none;border:none;font-size:22px;cursor:pointer;padding:4px;line-height:1">⚙️</button>
   </header>
   <input type="file" id="avatarInput" accept="image/*" hidden>
 
@@ -306,16 +306,19 @@
       <canvas id="weightChart"></canvas>
       <div class="chart-tip" id="wTip"></div>
     </div>
+    <div id="weightInsight" style="font-size:11.5px;color:var(--tabby-soft);text-align:center;margin-top:8px;line-height:1.6"></div>
   </div>
 
   <div class="card">
-    <h2>每日奶量 <span class="sub">mL・當日合計</span></h2>
-    <canvas id="milkChart"></canvas>
-  </div>
-
-  <div class="card" id="foodCard" style="display:none">
-    <h2>每日罐罐 <span class="sub">g・當日合計</span></h2>
-    <canvas id="foodChart"></canvas>
+    <h2>每日營養攝取 <span class="sub" id="nutriChartSub">kcal・堆疊</span></h2>
+    <div class="range-toggle" id="nutriMode">
+      <button data-m="kcal" class="sel">熱量</button>
+      <button data-m="raw">原始量</button>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="nutritionChart"></canvas>
+    </div>
+    <div id="nutriLegend" style="display:flex;gap:14px;justify-content:center;font-size:11px;color:var(--tabby-soft);margin-top:6px"></div>
   </div>
 
   <div class="card">
@@ -451,6 +454,39 @@
   <button class="cancel" id="cancelBtn">取消</button>
 </div>
 
+<div class="overlay" id="setOverlay"></div>
+<div class="sheet" id="setSheet">
+  <h3>🍽️ 食物設定</h3>
+  <div class="sheet-sub">換品牌時改這裡的數字就好，不用改程式。改完全家的畫面都會即時套用。</div>
+
+  <div class="field">
+    <label>🥫 罐頭名稱</label>
+    <input type="text" id="sCanName" placeholder="例如：皇家離乳罐">
+  </div>
+  <div class="field">
+    <label>🥫 罐頭熱量 (kcal / g)</label>
+    <input type="number" id="sCanKcal" inputmode="decimal" step="0.01" min="0" placeholder="看罐身 ME，例如 0.9">
+    <div style="font-size:10.5px;color:#8A7C68;margin-top:4px">罐身通常標「kcal/100g」→ 除以 100 就是 kcal/g（例如 90 kcal/100g = 0.9）</div>
+  </div>
+  <div class="field">
+    <label>🥛 奶粉名稱</label>
+    <input type="text" id="sFormulaName" placeholder="例如：貓奶粉">
+  </div>
+  <div class="two-col">
+    <div class="field">
+      <label>🥛 奶粉 (kcal / 湯匙)</label>
+      <input type="number" id="sFormulaKcal" inputmode="decimal" step="0.1" min="0" placeholder="例如 12.4">
+    </div>
+    <div class="field">
+      <label>💧 沖泡 (cc / 湯匙)</label>
+      <input type="number" id="sFormulaWater" inputmode="decimal" step="1" min="0" placeholder="例如 30">
+    </div>
+  </div>
+
+  <button class="save" id="setSaveBtn">儲存設定</button>
+  <button class="cancel" id="setCancelBtn">取消</button>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <div class="lightbox" id="lightbox">
@@ -491,7 +527,9 @@ let deleteArmed = false;
 /* ================= 餵食 / 熱量設定 =================
    註：food = 罐頭克數(g)。此處為預設值，階段四會移到雲端「食物設定頁」可維護。 */
 const FEED_CONFIG = {
+  canName: '皇家離乳罐',
   canKcalPerG: 0.9,          /* 皇家離乳罐 kcal/g：預設值，請依罐身標示調整 */
+  formulaName: '奶粉',
   formulaKcalPerScoop: 12.4, /* 奶粉 1 湯匙 = 12.4 kcal */
   formulaWaterPerScoop: 30   /* 建議沖泡：1 湯匙 : 30cc 水（僅提示） */
 };
@@ -674,8 +712,8 @@ function renderStats(){
   const summary=document.getElementById('daySummary');
   if(feeds.length){
     const lt=new Date(feeds[0].t);
-    const sinceMin=Math.floor((Date.now()-lt)/6e4);
-    const sinceTxt=sinceMin<60?`${sinceMin} 分鐘前`:`${Math.floor(sinceMin/60)} 小時 ${sinceMin%60} 分前`;
+    const sinceMin=Math.max(0,Math.floor((Date.now()-lt)/6e4));
+    const sinceTxt=sinceMin<1?'剛剛':sinceMin<60?`${sinceMin} 分鐘前`:`${Math.floor(sinceMin/60)} 小時 ${sinceMin%60} 分前`;
     summary.textContent=`今日餵食 ${feeds.length} 次・最後一餐 ${fmtTime(lt)}（${sinceTxt}）`;
   }else{
     summary.textContent='今天還沒有餵食記錄';
@@ -783,42 +821,84 @@ function renderWeightChart(){
   ctx.textAlign='right';ctx.fillText(fmtDay(new Date(xs[xs.length-1])),W-16,H-6);
 }
 
-/* ================= 每日奶量長條圖 ================= */
-function renderMilkChart(){
-  const cv=document.getElementById('milkChart');
+/* ================= 每日營養攝取（堆疊）================= */
+let nutriMode='kcal'; /* 'kcal' 或 'raw' */
+function renderNutritionChart(){
+  const cv=document.getElementById('nutritionChart');
   const dpr=window.devicePixelRatio||1;
-  const W=cv.clientWidth,H=140;
+  const W=cv.clientWidth,H=160;
   cv.width=W*dpr;cv.height=H*dpr;
   const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
   ctx.clearRect(0,0,W,H);
 
   const daily={};
   entries.forEach(e=>{
-    if(!e.ml)return;
+    const feed=(+e.ml||0)>0||(+e.food||0)>0||(+e.formula_scoop||0)>0;
+    if(!feed)return;
     const d=e.t.slice(0,10);
-    daily[d]=(daily[d]||0)+(+e.ml||0);
+    const o=daily[d]||(daily[d]={can:0,formula:0,canG:0,scoop:0,water:0,ml:0});
+    o.canG+=(+e.food||0);
+    o.scoop+=(+e.formula_scoop||0);
+    o.water+=(+e.water_ml||0);
+    o.ml+=(+e.ml||0);
+    o.can+=(+e.food||0)*FEED_CONFIG.canKcalPerG;
+    o.formula+=(+e.formula_scoop||0)*FEED_CONFIG.formulaKcalPerScoop;
   });
   const days=Object.keys(daily).sort();
-  if(!days.length){ctx.fillStyle='#8A7C68';ctx.font='12px sans-serif';ctx.fillText('還沒有奶量記錄',16,70);return}
+  const legend=document.getElementById('nutriLegend');
+  const sub=document.getElementById('nutriChartSub');
+  if(!days.length){legend.innerHTML='';sub.textContent='';ctx.fillStyle='#8A7C68';ctx.font='12px sans-serif';ctx.fillText('還沒有餵食記錄',16,80);return}
   const shown=days.slice(-8);
-  const max=Math.max(...shown.map(d=>daily[d]),10);
   const gap=(W-32)/shown.length;
-  const barW=Math.min(36,gap-10);
+  const barW=Math.min(34,gap-10);
+  const bottomY=H-24, topPad=24, scaleH=bottomY-topPad;
 
-  shown.forEach((d,i)=>{
-    const v=Math.round(daily[d]*10)/10;
-    const h=(v/max)*(H-48);
-    const x=16+gap*i+(gap-barW)/2;
-    const y=H-26-h;
-    ctx.fillStyle= d===days[days.length-1] ? '#E0A93E' : '#F5C84C';
-    roundRect(ctx,x,y,barW,h,6);
-    ctx.fill();
-    ctx.fillStyle='#5A4A3A';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
-    ctx.fillText(v,x+barW/2,y-5);
-    ctx.fillStyle='#8A7C68';ctx.font='10px sans-serif';
-    const dd=new Date(d+'T00:00');
-    ctx.fillText(fmtDay(dd),x+barW/2,H-8);
-  });
+  if(nutriMode==='kcal'){
+    sub.textContent='kcal・罐頭+奶粉堆疊';
+    legend.innerHTML='<span style="color:#5E8A58">■ 罐頭</span><span style="color:#B08A4A">■ 奶粉</span><span style="color:#E0A93E">┈ 目標</span>';
+    const max=Math.max(...shown.map(d=>daily[d].can+daily[d].formula),10);
+    shown.forEach((d,i)=>{
+      const o=daily[d];
+      const x=16+gap*i+(gap-barW)/2;
+      const canH=(o.can/max)*scaleH, forH=(o.formula/max)*scaleH;
+      let y=bottomY;
+      if(canH>0){ctx.fillStyle='#7FA37A';roundRect(ctx,x,y-canH,barW,canH,4);ctx.fill();y-=canH;}
+      if(forH>0){ctx.fillStyle='#C79A5B';roundRect(ctx,x,y-forH,barW,forH,4);ctx.fill();y-=forH;}
+      const tot=o.can+o.formula;
+      if(tot>0){ctx.fillStyle='#5A4A3A';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
+        ctx.fillText(Math.round(tot),x+barW/2,y-4);}
+      ctx.fillStyle='#8A7C68';ctx.font='10px sans-serif';ctx.textAlign='center';
+      ctx.fillText(fmtDay(new Date(d+'T00:00')),x+barW/2,H-8);
+    });
+    const ws=entries.filter(e=>e.g!=null).sort((a,b)=>a.t.localeCompare(b.t));
+    if(ws.length){
+      const tg=calorieTarget(ws[ws.length-1].g).mid;
+      if(tg>0&&tg<=max){
+        const ty=bottomY-(tg/max)*scaleH;
+        ctx.strokeStyle='rgba(224,169,62,.75)';ctx.setLineDash([4,3]);ctx.lineWidth=1.2;
+        ctx.beginPath();ctx.moveTo(14,ty);ctx.lineTo(W-14,ty);ctx.stroke();ctx.setLineDash([]);
+      }
+    }
+  }else{
+    sub.textContent='原始量・罐頭g(柱)＋奶粉匙/水';
+    legend.innerHTML='<span style="color:#5E8A58">■ 罐頭g</span><span style="color:#7B6A99">🥛匙</span><span style="color:#5B87A8">💧水</span>';
+    const max=Math.max(...shown.map(d=>daily[d].canG),1);
+    shown.forEach((d,i)=>{
+      const o=daily[d];
+      const x=16+gap*i+(gap-barW)/2;
+      const h=(o.canG/max)*scaleH;
+      ctx.textAlign='center';
+      if(h>0){ctx.fillStyle='#7FA37A';roundRect(ctx,x,bottomY-h,barW,h,4);ctx.fill();
+        ctx.fillStyle='#5A4A3A';ctx.font='bold 10px sans-serif';ctx.fillText(Math.round(o.canG*10)/10+'g',x+barW/2,bottomY-h-4);}
+      const ann=[];
+      if(o.ml>0)ann.push('🍼'+Math.round(o.ml));
+      if(o.scoop>0)ann.push('🥛'+(Math.round(o.scoop*10)/10));
+      if(o.water>0)ann.push('💧'+Math.round(o.water));
+      if(ann.length){ctx.fillStyle='#7B6A99';ctx.font='9px sans-serif';ctx.fillText(ann.join(' '),x+barW/2,H-18);}
+      ctx.fillStyle='#8A7C68';ctx.font='10px sans-serif';
+      ctx.fillText(fmtDay(new Date(d+'T00:00')),x+barW/2,H-8);
+    });
+  }
 }
 function roundRect(ctx,x,y,w,h,r){
   r=Math.min(r,h/2,w/2);
@@ -829,48 +909,6 @@ function roundRect(ctx,x,y,w,h,r){
   ctx.arcTo(x,y+h,x,y,0);
   ctx.arcTo(x,y,x+w,y,r);
   ctx.closePath();
-}
-
-/* ================= 每日罐罐長條圖 ================= */
-function renderFoodChart(){
-  const daily={};
-  entries.forEach(e=>{
-    if(!e.food)return;
-    const d=e.t.slice(0,10);
-    daily[d]=(daily[d]||0)+(+e.food||0);
-  });
-  const days=Object.keys(daily).sort();
-  const card=document.getElementById('foodCard');
-  /* 還沒開始吃副食品時整張圖隱藏，不佔版面 */
-  if(!days.length){card.style.display='none';return}
-  card.style.display='';
-
-  const cv=document.getElementById('foodChart');
-  const dpr=window.devicePixelRatio||1;
-  const W=cv.clientWidth,H=140;
-  cv.width=W*dpr;cv.height=H*dpr;
-  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
-  ctx.clearRect(0,0,W,H);
-
-  const shown=days.slice(-8);
-  const max=Math.max(...shown.map(d=>daily[d]),10);
-  const gap=(W-32)/shown.length;
-  const barW=Math.min(36,gap-10);
-
-  shown.forEach((d,i)=>{
-    const v=Math.round(daily[d]*10)/10;
-    const h=(v/max)*(H-48);
-    const x=16+gap*i+(gap-barW)/2;
-    const y=H-26-h;
-    ctx.fillStyle= d===days[days.length-1] ? '#5E8A58' : '#7FA37A';
-    roundRect(ctx,x,y,barW,h,6);
-    ctx.fill();
-    ctx.fillStyle='#5A4A3A';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
-    ctx.fillText(v,x+barW/2,y-5);
-    ctx.fillStyle='#8A7C68';ctx.font='10px sans-serif';
-    const dd=new Date(d+'T00:00');
-    ctx.fillText(fmtDay(dd),x+barW/2,H-8);
-  });
 }
 
 /* ================= 清單 ================= */
@@ -1431,7 +1469,7 @@ function compressAvatar(file){
 }
 
 /* ================= 啟動 ================= */
-function renderAll(){renderStats();renderWeightChart();renderMilkChart();renderFoodChart();renderList()}
+function renderAll(){renderStats();renderWeightChart();renderWeightInsight();renderNutritionChart();renderList()}
 
 /* 體重圖時間範圍切換 */
 document.querySelectorAll('#wRange button').forEach(b=>{
@@ -1441,6 +1479,37 @@ document.querySelectorAll('#wRange button').forEach(b=>{
     renderWeightChart();
   };
 });
+
+/* 營養攝取圖：熱量 / 原始量 切換 */
+document.querySelectorAll('#nutriMode button').forEach(b=>{
+  b.onclick=()=>{
+    nutriMode=b.dataset.m;
+    document.querySelectorAll('#nutriMode button').forEach(x=>x.classList.toggle('sel',x===b));
+    renderNutritionChart();
+  };
+});
+
+/* 7日平均增重 + 體重停滯提醒 */
+function renderWeightInsight(){
+  const el=document.getElementById('weightInsight');
+  if(!el)return;
+  const ws=entries.filter(e=>e.g!=null).sort((a,b)=>a.t.localeCompare(b.t));
+  if(ws.length<2){el.innerHTML='';return}
+  const last=ws[ws.length-1];
+  const cutoff=Date.now()-7*864e5;
+  const win=ws.filter(w=>new Date(w.t).getTime()>=cutoff);
+  const base=win.length>=2?win[0]:ws[0];
+  const dayspan=Math.max(1,(new Date(last.t)-new Date(base.t))/864e5);
+  const perDay=Math.round((last.g-base.g)/dayspan*10)/10;
+  const gainTxt=perDay>=0?`+${perDay}`:`${perDay}`;
+  /* 停滯/下降判斷：最近三筆體重是否沒有上升 */
+  let warn='';
+  if(ws.length>=3){
+    const l3=ws.slice(-3).map(w=>w.g);
+    if(l3[2]<=l3[0]) warn=`<div style="color:var(--paw);font-weight:700;margin-top:2px">⚠️ 最近體重沒有上升，建議留意進食並諮詢獸醫</div>`;
+  }
+  el.innerHTML=`7日平均增重 <b style="color:${perDay>=0?'var(--leaf)':'var(--paw)'}">${gainTxt} g/天</b>（近 ${Math.round(dayspan)} 天 ${base.g}→${last.g}g）`+warn;
+}
 
 /* 體重圖 hover / 觸控提示：顯示最接近的資料點體重 */
 (function(){
@@ -1465,13 +1534,70 @@ document.querySelectorAll('#wRange button').forEach(b=>{
   cv.addEventListener('pointerdown',e=>show(e.clientX));
   cv.addEventListener('pointerleave',()=>tip.style.display='none');
 })();
+/* ================= 食物設定（雲端，換品牌不改程式）================= */
+function startFeedConfigListening(){
+  onSnapshot(doc(db,'meta','feedConfig'),
+    snap=>{
+      if(snap.exists()){
+        const c=snap.data();
+        ['canName','canKcalPerG','formulaName','formulaKcalPerScoop','formulaWaterPerScoop'].forEach(k=>{
+          if(c[k]!=null&&c[k]!=='')FEED_CONFIG[k]=c[k];
+        });
+        renderAll();
+      }
+    },
+    err=>console.error('feedConfig listen error',err)
+  );
+}
+function openSettings(){
+  document.getElementById('sCanName').value=FEED_CONFIG.canName||'';
+  document.getElementById('sCanKcal').value=FEED_CONFIG.canKcalPerG??'';
+  document.getElementById('sFormulaName').value=FEED_CONFIG.formulaName||'';
+  document.getElementById('sFormulaKcal').value=FEED_CONFIG.formulaKcalPerScoop??'';
+  document.getElementById('sFormulaWater').value=FEED_CONFIG.formulaWaterPerScoop??'';
+  document.getElementById('setSheet').classList.add('show');
+  document.getElementById('setOverlay').classList.add('show');
+}
+function closeSettings(){
+  document.getElementById('setSheet').classList.remove('show');
+  document.getElementById('setOverlay').classList.remove('show');
+}
+document.getElementById('settingsBtn').onclick=openSettings;
+document.getElementById('setCancelBtn').onclick=closeSettings;
+document.getElementById('setOverlay').onclick=closeSettings;
+document.getElementById('setSaveBtn').onclick=async()=>{
+  const canKcal=parseFloat(document.getElementById('sCanKcal').value);
+  const forKcal=parseFloat(document.getElementById('sFormulaKcal').value);
+  const forWater=parseFloat(document.getElementById('sFormulaWater').value);
+  const data={
+    canName:document.getElementById('sCanName').value.trim()||'罐頭',
+    canKcalPerG:isNaN(canKcal)?FEED_CONFIG.canKcalPerG:canKcal,
+    formulaName:document.getElementById('sFormulaName').value.trim()||'奶粉',
+    formulaKcalPerScoop:isNaN(forKcal)?FEED_CONFIG.formulaKcalPerScoop:forKcal,
+    formulaWaterPerScoop:isNaN(forWater)?FEED_CONFIG.formulaWaterPerScoop:forWater
+  };
+  const btn=document.getElementById('setSaveBtn');
+  btn.disabled=true;btn.textContent='儲存中…';
+  try{
+    await setDoc(doc(db,'meta','feedConfig'),data);
+    toast('食物設定已更新 🐾');
+    closeSettings();
+  }catch(e){
+    console.error('feedConfig save error',e);
+    toast('儲存失敗：'+(e.message||'請檢查網路'));
+  }finally{
+    btn.disabled=false;btn.textContent='儲存設定';
+  }
+};
+
 (async()=>{
   renderAge();
   await seedIfEmpty();
   startListening();
   startPhotoListening();
   startAvatarListening();
-  window.addEventListener('resize',()=>{renderWeightChart();renderMilkChart();renderFoodChart()});
+  startFeedConfigListening();
+  window.addEventListener('resize',()=>{renderWeightChart();renderNutritionChart()});
 })();
 </script>
 </body>
