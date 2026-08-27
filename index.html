@@ -57,6 +57,13 @@
     cursor:pointer;font-family:inherit;
   }
   .range-toggle button.sel{background:var(--butter);border-color:var(--butter);color:var(--tabby)}
+  .progress{height:14px;background:var(--stripe);border-radius:99px;overflow:hidden}
+  .progress-bar{height:100%;width:0;border-radius:99px;background:var(--butter-deep);transition:width .4s ease}
+  .progress-bar.over{background:var(--paw)}
+  .progress-bar.low{background:var(--leaf)}
+  .wean-track{display:flex;height:16px;border-radius:99px;overflow:hidden;font-size:10px;font-weight:700;color:#fff}
+  .wean-track .can{background:var(--leaf);display:flex;align-items:center;justify-content:center;min-width:0}
+  .wean-track .formula{background:#C79A5B;display:flex;align-items:center;justify-content:center;min-width:0}
   .chart-wrap{position:relative}
   .chart-tip{
     position:absolute;display:none;pointer-events:none;z-index:5;
@@ -95,6 +102,10 @@
   .entry .flags .topical{color:#6D9B8A;font-weight:600;background:#E8F2EE;padding:1px 7px;border-radius:99px}
   .entry .flags .wound{color:#C97F6D;font-weight:600;background:#FAEBE7;padding:1px 7px;border-radius:99px}
   .entry .flags .vaccine{color:#A96A2E;font-weight:600;background:#F7EBDD;padding:1px 7px;border-radius:99px}
+  .entry .flags .kcal{color:#C0761F;font-weight:700}
+  .entry .flags .water{color:#5B87A8}
+  .entry .flags .appetite{color:#7B6A99;font-weight:600}
+  .entry .flags .ftemp{color:#8A7A68}
   .entry .note{font-size:11px;color:var(--tabby-soft);margin-top:3px;word-break:break-all;line-height:1.5}
   .entry .who{font-size:11px;padding:3px 8px;border-radius:99px;white-space:nowrap;background:var(--stripe);color:var(--tabby-soft);font-weight:600;margin-top:1px}
   .entry .who.mama{background:#F9E3DC;color:#C46A52}
@@ -264,7 +275,7 @@
     </div>
     <div class="stat">
       <div class="val" id="statMilk">–</div>
-      <div class="lbl">今日奶量</div>
+      <div class="lbl">今日攝取</div>
       <div class="sub2" id="statMilkFood"></div>
     </div>
     <div class="stat" id="statPoopCard">
@@ -274,7 +285,15 @@
   </div>
 
   <div id="medBanner" style="display:none;background:#EEF1F9;border-radius:12px;padding:9px 14px;margin-bottom:10px;font-size:13px;font-weight:700;color:#7B87B8;text-align:center"></div>
-  <div id="daySummary" style="font-size:11.5px;color:var(--tabby-soft);text-align:center;margin:-4px 0 12px"></div>
+  <div id="daySummary" style="font-size:11.5px;color:var(--tabby-soft);text-align:center;margin:-4px 0 10px"></div>
+
+  <div class="card" id="nutriCard" style="display:none">
+    <h2>🍽️ 今日攝取熱量 <span class="sub" id="nutriTargetSub"></span></h2>
+    <div class="progress"><div class="progress-bar" id="nutriBar"></div></div>
+    <div id="nutriInfo" style="font-size:11.5px;color:var(--tabby-soft);margin-top:9px;line-height:1.7"></div>
+    <div id="weanBar" style="display:none;margin-top:8px"></div>
+    <div style="font-size:10px;color:#8A7C68;margin-top:8px;line-height:1.5">⚠️ 熱量目標為依體重估算（2.5×RER，範圍 2–3×），僅供參考，需依成長與獸醫建議調整。</div>
+  </div>
 
   <div class="card">
     <h2>體重趨勢 <span class="sub">g・尿尿後餵奶前</span></h2>
@@ -318,27 +337,62 @@
 <div class="overlay" id="overlay"></div>
 <div class="sheet" id="sheet">
   <h3 id="sheetTitle">新增記錄</h3>
-  <div class="sheet-sub">奶量、罐罐、體重、便便、傷口都可以在同一筆一起填，沒有的留空就好</div>
+  <div class="sheet-sub">奶量、罐頭、奶粉、體重、尿便都可以在同一筆一起填，沒有的留空就好</div>
 
   <div class="field">
     <label>時間</label>
     <input type="datetime-local" id="fTime">
   </div>
 
-  <div class="two-col">
-    <div class="field">
-      <label>🍼 奶量 (mL)</label>
-      <input type="number" id="fMl" inputmode="decimal" step="0.5" min="0" placeholder="沒餵留空">
-    </div>
-    <div class="field">
-      <label>⚖️ 體重 (g)</label>
-      <input type="number" id="fG" inputmode="decimal" step="0.5" min="0" placeholder="沒量留空">
+  <div class="field">
+    <label>🍽️ 餵食（混合餐可一起填，沒有的留空）</label>
+    <div style="background:#fff;border:1.5px solid var(--stripe);border-radius:11px;padding:10px 12px">
+      <div class="two-col">
+        <div class="field" style="margin-bottom:9px">
+          <label style="font-size:11px">🍼 奶量 (mL)</label>
+          <input type="number" id="fMl" inputmode="decimal" step="0.5" min="0" placeholder="瓶餵" style="border:1px solid var(--stripe)">
+        </div>
+        <div class="field" style="margin-bottom:9px">
+          <label style="font-size:11px">🥫 離乳罐頭 (g)</label>
+          <input type="number" id="fFood" inputmode="decimal" step="0.5" min="0" placeholder="罐頭克數" style="border:1px solid var(--stripe)">
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="field" style="margin-bottom:8px">
+          <label style="font-size:11px">🥛 奶粉 (湯匙)</label>
+          <input type="number" id="fScoop" inputmode="decimal" step="0.5" min="0" placeholder="湯匙數" style="border:1px solid var(--stripe)">
+        </div>
+        <div class="field" style="margin-bottom:8px">
+          <label style="font-size:11px">💧 額外加水 (mL)</label>
+          <input type="number" id="fWater" inputmode="decimal" step="1" min="0" placeholder="不計熱量" style="border:1px solid var(--stripe)">
+        </div>
+      </div>
+      <div id="kcalHint" style="font-size:11.5px;color:var(--butter-deep);font-weight:700;text-align:center;padding-top:2px;line-height:1.5"></div>
     </div>
   </div>
 
   <div class="field">
-    <label>🥫 離乳罐頭 (g)</label>
-    <input type="number" id="fFood" inputmode="decimal" step="0.5" min="0" placeholder="沒吃留空">
+    <label>⚖️ 體重 (g)</label>
+    <input type="number" id="fG" inputmode="decimal" step="0.5" min="0" placeholder="沒量留空">
+  </div>
+
+  <div class="field">
+    <label>😋 食慾（餵副食品時填）</label>
+    <div class="seg" id="appetiteSeg">
+      <button data-v="all">吃光</button>
+      <button data-v="half">吃一半</button>
+      <button data-v="few">吃幾口</button>
+      <button data-v="none">不吃</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>🌡️ 食物溫度</label>
+    <div class="seg" id="tempSeg">
+      <button data-v="cold">冷</button>
+      <button data-v="room">常溫</button>
+      <button data-v="warm">微溫</button>
+    </div>
   </div>
 
   <div class="field">
@@ -430,9 +484,29 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const COL = 'ruirui';
 
-let entries = [];   /* {id,t,ml,g,pee,poop,wound,note,who} */
+let entries = [];   /* {id,t,ml,g,food(罐頭g),formula_scoop,water_ml,kcal,appetite,food_temp,pee,poop,wound,vaccine,note,who} */
 let editingId = null;
 let deleteArmed = false;
+
+/* ================= 餵食 / 熱量設定 =================
+   註：food = 罐頭克數(g)。此處為預設值，階段四會移到雲端「食物設定頁」可維護。 */
+const FEED_CONFIG = {
+  canKcalPerG: 0.9,          /* 皇家離乳罐 kcal/g：預設值，請依罐身標示調整 */
+  formulaKcalPerScoop: 12.4, /* 奶粉 1 湯匙 = 12.4 kcal */
+  formulaWaterPerScoop: 30   /* 建議沖泡：1 湯匙 : 30cc 水（僅提示） */
+};
+/* 幼貓每日熱量估算：RER=70×kg^0.75；成長期建議 2~3×RER，中心用 2.5× */
+function rerOf(g){ if(!g)return 0; return 70*Math.pow(g/1000,0.75); }
+function calorieTarget(g){
+  const rer=rerOf(g);
+  return { mid:Math.round(rer*2.5), low:Math.round(rer*2), high:Math.round(rer*3) };
+}
+/* 一筆餵食的熱量：罐頭 + 奶粉（額外加水不計熱量） */
+function mealKcal(e){
+  const can=(+e.food||0)*FEED_CONFIG.canKcalPerG;
+  const formula=(+e.formula_scoop||0)*FEED_CONFIG.formulaKcalPerScoop;
+  return Math.round((can+formula)*10)/10;
+}
 
 /* ================= 歷史資料（首次自動匯入） ================= */
 const SEED=[
@@ -552,8 +626,6 @@ function renderStats(){
 
   const d=new Date();
   const dkey=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  const todayMl=entries.filter(e=>e.t&&e.t.startsWith(dkey)).reduce((s,e)=>s+(+e.ml||0),0);
-  document.getElementById('statMilk').textContent=todayMl+'ml';
 
   const poops=entries.filter(e=>e.poop==='yes').sort((a,b)=>b.t.localeCompare(a.t));
   const card=document.getElementById('statPoopCard');
@@ -580,20 +652,77 @@ function renderStats(){
     banner.style.display='none';
   }
 
-  /* 本日摘要：餵了幾次、最後一餐 */
-  const todayFeeds=entries.filter(e=>e.t.startsWith(dkey)&&e.ml>0)
+  /* ===== 今日攝取彙總 ===== */
+  const today=entries.filter(e=>e.t&&e.t.startsWith(dkey));
+  const r1=n=>Math.round(n*10)/10;
+  const todayMl=r1(today.reduce((s,e)=>s+(+e.ml||0),0));
+  const todayCan=r1(today.reduce((s,e)=>s+(+e.food||0),0));
+  const todayScoop=r1(today.reduce((s,e)=>s+(+e.formula_scoop||0),0));
+  const todayWater=r1(today.reduce((s,e)=>s+(+e.water_ml||0),0));
+  const canKcal=r1(todayCan*FEED_CONFIG.canKcalPerG);
+  const formulaKcal=r1(todayScoop*FEED_CONFIG.formulaKcalPerScoop);
+  const todayKcal=r1(canKcal+formulaKcal);
+
+  /* 今日攝取卡片（中間那張） */
+  document.getElementById('statMilk').textContent=todayKcal>0?todayKcal+' kcal':'–';
+  const tgt=last?calorieTarget(last.g):null;
+  document.getElementById('statMilkFood').textContent=tgt?`目標約 ${tgt.mid}`:'';
+
+  /* 餵食次數與最後一餐 */
+  const feeds=today.filter(e=>(+e.ml||0)>0||(+e.food||0)>0||(+e.formula_scoop||0)>0)
     .sort((a,b)=>b.t.localeCompare(a.t));
-  const todayFood=Math.round(entries.filter(e=>e.t.startsWith(dkey))
-    .reduce((s,e)=>s+(+e.food||0),0)*10)/10;
-  const foodTxt=todayFood>0?`・🥫 罐罐 ${todayFood}g`:'';
-  document.getElementById('statMilkFood').textContent=todayFood>0?`＋🥫 ${todayFood}g`:'';
   const summary=document.getElementById('daySummary');
-  if(todayFeeds.length){
-    const last=todayFeeds[0];
-    const lt=new Date(last.t);
-    summary.textContent=`今日已餵 ${todayFeeds.length} 次・最後一餐 ${fmtTime(lt)}（${last.ml}ml）`+foodTxt;
+  if(feeds.length){
+    const lt=new Date(feeds[0].t);
+    const sinceMin=Math.floor((Date.now()-lt)/6e4);
+    const sinceTxt=sinceMin<60?`${sinceMin} 分鐘前`:`${Math.floor(sinceMin/60)} 小時 ${sinceMin%60} 分前`;
+    summary.textContent=`今日餵食 ${feeds.length} 次・最後一餐 ${fmtTime(lt)}（${sinceTxt}）`;
   }else{
-    summary.textContent='今天還沒有餵奶記錄'+foodTxt;
+    summary.textContent='今天還沒有餵食記錄';
+  }
+
+  /* ===== 今日攝取熱量卡片 ===== */
+  const nutri=document.getElementById('nutriCard');
+  if(todayKcal>0||tgt){
+    nutri.style.display='';
+    /* 目標進度條 */
+    const bar=document.getElementById('nutriBar');
+    if(tgt){
+      const pct=Math.min(100,Math.round(todayKcal/tgt.mid*100));
+      bar.style.width=pct+'%';
+      bar.classList.remove('over','low');
+      if(todayKcal>tgt.high)bar.classList.add('over');
+      else if(todayKcal>=tgt.low)bar.classList.add('low');
+      document.getElementById('nutriTargetSub').textContent=`${todayKcal} / 目標約 ${tgt.mid} kcal（範圍 ${tgt.low}–${tgt.high}）`;
+    }else{
+      bar.style.width='0%';
+      document.getElementById('nutriTargetSub').textContent=`${todayKcal} kcal`;
+    }
+    /* 原始攝取量 + 熱量拆解 */
+    const raw=[];
+    if(todayMl>0)raw.push(`🍼 奶 ${todayMl}mL`);
+    if(todayCan>0)raw.push(`🥫 罐頭 ${todayCan}g`);
+    if(todayScoop>0)raw.push(`🥛 奶粉 ${todayScoop}匙`);
+    if(todayWater>0)raw.push(`💧 加水 ${todayWater}mL`);
+    document.getElementById('nutriInfo').innerHTML=
+      (raw.length?raw.join('・'):'今天還沒有餵食')+
+      (todayKcal>0?`<br>🔥 熱量：罐頭 ${canKcal} + 奶粉 ${formulaKcal} = <b style="color:var(--butter-deep)">${todayKcal} kcal</b>`:'');
+    /* 離乳比例（依熱量） */
+    const wb=document.getElementById('weanBar');
+    if(todayKcal>0&&(canKcal>0||formulaKcal>0)){
+      const canPct=Math.round(canKcal/todayKcal*100);
+      const forPct=100-canPct;
+      wb.style.display='';
+      wb.innerHTML=`<div style="font-size:11px;color:var(--tabby-soft);margin-bottom:3px">離乳比例（熱量佔比）</div>
+        <div class="wean-track">
+          ${canPct>0?`<div class="can" style="width:${canPct}%">${canPct>=12?'罐頭 '+canPct+'%':''}</div>`:''}
+          ${forPct>0?`<div class="formula" style="width:${forPct}%">${forPct>=12?'奶粉 '+forPct+'%':''}</div>`:''}
+        </div>`;
+    }else{
+      wb.style.display='none';
+    }
+  }else{
+    nutri.style.display='none';
   }
 }
 
@@ -753,9 +882,17 @@ function makeEntryEl(it){
   const parts=[];
   if(it.ml)parts.push(`<span class="ml">${it.ml} <small>mL</small></span>`);
   if(it.food)parts.push(`<span class="ml" style="color:var(--leaf)">🥫 ${it.food}<small>g</small></span>`);
+  if(it.formula_scoop)parts.push(`<span class="ml" style="color:#B5793F">🥛 ${it.formula_scoop}<small>匙</small></span>`);
   if(it.g!=null)parts.push(`<span class="gw">⚖️ ${it.g}<small>g</small></span>`);
   if(!parts.length)parts.push('<span class="ml"><small>觀察記錄</small></span>');
+  const kc=mealKcal(it);
   const flags=[];
+  if(kc>0)flags.push(`<span class="kcal">🔥 ${kc} kcal</span>`);
+  if(it.water_ml)flags.push(`<span class="water">💧 加水 ${it.water_ml}mL</span>`);
+  const APP={all:'吃光😻',half:'吃一半',few:'吃幾口',none:'不吃🙅'};
+  if(it.appetite&&APP[it.appetite])flags.push(`<span class="appetite">${APP[it.appetite]}</span>`);
+  const TEMP={cold:'🧊冷',room:'常溫',warm:'🔥微溫'};
+  if(it.food_temp&&TEMP[it.food_temp])flags.push(`<span class="ftemp">${TEMP[it.food_temp]}</span>`);
   if(it.pee==='yes')flags.push('<span class="yes">尿✓</span>');
   else if(it.pee==='self')flags.push('<span class="yes">自己尿✓</span>');
   else if(it.pee==='no')flags.push('尿–');
@@ -845,6 +982,29 @@ function bindSeg(id,colorMap){
 bindSeg('peeSeg',peeColors);
 bindSeg('poopSeg',poopColors);
 bindSeg('whoSeg',whoColors);
+bindSeg('appetiteSeg',null);
+bindSeg('tempSeg',null);
+
+/* 表單內即時顯示本餐熱量與建議沖泡水 */
+function updateKcalHint(){
+  const food=parseFloat(document.getElementById('fFood').value)||0;
+  const scoop=parseFloat(document.getElementById('fScoop').value)||0;
+  const kcal=mealKcal({food,formula_scoop:scoop});
+  const el=document.getElementById('kcalHint');
+  if(!el)return;
+  const parts=[];
+  if(kcal>0){
+    const canK=Math.round(food*FEED_CONFIG.canKcalPerG*10)/10;
+    const forK=Math.round(scoop*FEED_CONFIG.formulaKcalPerScoop*10)/10;
+    const detail=[food?`罐頭 ${canK}`:'',scoop?`奶粉 ${forK}`:''].filter(Boolean).join(' + ');
+    parts.push(`🔥 本餐約 ${kcal} kcal${detail&&(food&&scoop)?`（${detail}）`:''}`);
+  }
+  if(scoop>0){
+    parts.push(`💧 建議沖泡約 ${Math.round(scoop*FEED_CONFIG.formulaWaterPerScoop)} cc 水（拌罐頭可少加）`);
+  }
+  el.innerHTML=parts.join('<br>');
+}
+['fFood','fScoop'].forEach(id=>document.getElementById(id).addEventListener('input',updateKcalHint));
 
 function openSheet(id){
   editingId=id||null;
@@ -859,6 +1019,8 @@ function openSheet(id){
     document.getElementById('fMl').value=it.ml??'';
     document.getElementById('fG').value=it.g??'';
     document.getElementById('fFood').value=it.food??'';
+    document.getElementById('fScoop').value=it.formula_scoop??'';
+    document.getElementById('fWater').value=it.water_ml??'';
     document.getElementById('fMed').value=it.med||'';
     document.getElementById('fTopical').value=it.topical||'';
     document.getElementById('fWound').value=it.wound||'';
@@ -866,12 +1028,16 @@ function openSheet(id){
     document.getElementById('fNote').value=it.note||'';
     setSeg('peeSeg',it.pee==='no'?'no':'yes',peeColors);
     setSeg('poopSeg',it.poop||'no',poopColors);
+    setSeg('appetiteSeg',it.appetite||null,null);
+    setSeg('tempSeg',it.food_temp||null,null);
     setSeg('whoSeg',['媽媽','拔拔'].includes(it.who)?it.who:'媽媽',whoColors);
   }else{
     document.getElementById('fTime').value=nowLocal();
     document.getElementById('fMl').value='';
     document.getElementById('fG').value='';
     document.getElementById('fFood').value='';
+    document.getElementById('fScoop').value='';
+    document.getElementById('fWater').value='';
     document.getElementById('fMed').value='';
     document.getElementById('fTopical').value='';
     document.getElementById('fWound').value='';
@@ -879,8 +1045,11 @@ function openSheet(id){
     document.getElementById('fNote').value='';
     setSeg('peeSeg','yes',peeColors);
     setSeg('poopSeg','no',poopColors);
+    setSeg('appetiteSeg',null,null);
+    setSeg('tempSeg',null,null);
     if(!getSeg('whoSeg'))setSeg('whoSeg','媽媽',whoColors);
   }
+  updateKcalHint();
   sheet.classList.add('show');overlay.classList.add('show');
 }
 function closeSheet(){
@@ -899,9 +1068,13 @@ document.getElementById('saveBtn').onclick=async()=>{
   const mlRaw=document.getElementById('fMl').value;
   const gRaw=document.getElementById('fG').value;
   const foodRaw=document.getElementById('fFood').value;
+  const scoopRaw=document.getElementById('fScoop').value;
+  const waterRaw=document.getElementById('fWater').value;
   const ml=mlRaw===''?null:parseFloat(mlRaw);
   const g=gRaw===''?null:parseFloat(gRaw);
   const food=foodRaw===''?null:parseFloat(foodRaw);
+  const formula_scoop=scoopRaw===''?null:parseFloat(scoopRaw);
+  const water_ml=waterRaw===''?null:parseFloat(waterRaw);
   const med=document.getElementById('fMed').value.trim();
   const topical=document.getElementById('fTopical').value.trim();
   const wound=document.getElementById('fWound').value.trim();
@@ -909,9 +1082,12 @@ document.getElementById('saveBtn').onclick=async()=>{
   const note=document.getElementById('fNote').value.trim();
   const pee=getSeg('peeSeg')||'na';
   const poop=getSeg('poopSeg')||'no';
+  const appetite=getSeg('appetiteSeg')||'';
+  const food_temp=getSeg('tempSeg')||'';
   const who=getSeg('whoSeg')||'媽媽';
+  const kcal=mealKcal({food,formula_scoop});
 
-  if(ml==null&&g==null&&food==null&&!med&&!topical&&!wound&&!vaccine&&!note&&poop!=='yes'&&pee==='na'){
+  if(ml==null&&g==null&&food==null&&formula_scoop==null&&water_ml==null&&!appetite&&!food_temp&&!med&&!topical&&!wound&&!vaccine&&!note&&poop!=='yes'&&pee==='na'){
     toast('至少填一項內容');return;
   }
 
@@ -919,7 +1095,7 @@ document.getElementById('saveBtn').onclick=async()=>{
   btn.disabled=true;btn.textContent='儲存中…';
   try{
     const id=editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,6));
-    await setDoc(doc(db,COL,id),{t,ml,g,food,pee,poop,med,topical,wound,vaccine,note,who});
+    await setDoc(doc(db,COL,id),{t,ml,g,food,formula_scoop,water_ml,kcal,appetite,food_temp,pee,poop,med,topical,wound,vaccine,note,who});
     toast(editingId?'已更新 🐾':'已儲存 🐾');
     closeSheet();
   }catch(e){
