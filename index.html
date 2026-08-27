@@ -288,8 +288,10 @@
   <div id="daySummary" style="font-size:11.5px;color:var(--tabby-soft);text-align:center;margin:-4px 0 10px"></div>
 
   <div class="card" id="nutriCard" style="display:none">
-    <h2>🍽️ 今日攝取熱量 <span class="sub" id="nutriTargetSub"></span></h2>
+    <h2>🍽️ 今日攝取熱量</h2>
+    <div id="nutriHeadline" style="font-size:15px;font-weight:800;color:var(--tabby);margin-bottom:7px"></div>
     <div class="progress"><div class="progress-bar" id="nutriBar"></div></div>
+    <div id="nutriRange" style="font-size:11px;color:var(--tabby-soft);margin-top:5px"></div>
     <div id="nutriInfo" style="font-size:11.5px;color:var(--tabby-soft);margin-top:9px;line-height:1.7"></div>
     <div id="weanBar" style="display:none;margin-top:8px"></div>
     <div style="font-size:10px;color:#8A7C68;margin-top:8px;line-height:1.5">⚠️ 熱量目標為依體重估算（2.5×RER，範圍 2–3×），僅供參考，需依成長與獸醫建議調整。</div>
@@ -539,11 +541,18 @@ function calorieTarget(g){
   const rer=rerOf(g);
   return { mid:Math.round(rer*2.5), low:Math.round(rer*2), high:Math.round(rer*3) };
 }
-/* 一筆餵食的熱量：罐頭 + 奶粉（額外加水不計熱量） */
+/* 配方奶熱量密度：依標準沖泡比例推導 kcal/mL（例：12.4 ÷ 30 ≈ 0.413） */
+function milkKcalPerMl(){
+  return FEED_CONFIG.formulaWaterPerScoop>0
+    ? FEED_CONFIG.formulaKcalPerScoop/FEED_CONFIG.formulaWaterPerScoop : 0;
+}
+/* 一筆餵食的熱量：直接喝配方奶(mL) + 奶粉(匙) + 罐頭(g)；額外加水不計熱量。
+   註：配方奶 mL 與奶粉匙為兩個獨立輸入，各自計熱、不會重複。 */
 function mealKcal(e){
   const can=(+e.food||0)*FEED_CONFIG.canKcalPerG;
   const formula=(+e.formula_scoop||0)*FEED_CONFIG.formulaKcalPerScoop;
-  return Math.round((can+formula)*10)/10;
+  const milk=(+e.ml||0)*milkKcalPerMl();
+  return Math.round((can+formula+milk)*10)/10;
 }
 
 /* ================= 歷史資料（首次自動匯入） ================= */
@@ -699,7 +708,8 @@ function renderStats(){
   const todayWater=r1(today.reduce((s,e)=>s+(+e.water_ml||0),0));
   const canKcal=r1(todayCan*FEED_CONFIG.canKcalPerG);
   const formulaKcal=r1(todayScoop*FEED_CONFIG.formulaKcalPerScoop);
-  const todayKcal=r1(canKcal+formulaKcal);
+  const milkKcal=r1(todayMl*milkKcalPerMl());   /* 直接喝的配方奶熱量 */
+  const todayKcal=r1(canKcal+formulaKcal+milkKcal);
 
   /* 今日攝取卡片（中間那張） */
   document.getElementById('statMilk').textContent=todayKcal>0?todayKcal+' kcal':'–';
@@ -723,38 +733,47 @@ function renderStats(){
   const nutri=document.getElementById('nutriCard');
   if(todayKcal>0||tgt){
     nutri.style.display='';
-    /* 目標進度條 */
+    /* 標題數字 + 目標進度條（百分比對中間估算值 tgt.mid） */
     const bar=document.getElementById('nutriBar');
+    const headline=document.getElementById('nutriHeadline');
+    const rangeEl=document.getElementById('nutriRange');
     if(tgt){
-      const pct=Math.min(100,Math.round(todayKcal/tgt.mid*100));
-      bar.style.width=pct+'%';
+      const pct=Math.round(todayKcal/tgt.mid*100);
+      bar.style.width=Math.min(100,pct)+'%';
       bar.classList.remove('over','low');
       if(todayKcal>tgt.high)bar.classList.add('over');
       else if(todayKcal>=tgt.low)bar.classList.add('low');
-      document.getElementById('nutriTargetSub').textContent=`${todayKcal} / 目標約 ${tgt.mid} kcal（範圍 ${tgt.low}–${tgt.high}）`;
+      headline.innerHTML=`今日 <b style="color:var(--butter-deep)">${todayKcal}</b> / 約 ${tgt.mid} kcal（${pct}%）`;
+      rangeEl.textContent=`參考範圍 ${tgt.low}–${tgt.high} kcal（百分比對中間值 ${tgt.mid}，非及格線）`;
     }else{
       bar.style.width='0%';
-      document.getElementById('nutriTargetSub').textContent=`${todayKcal} kcal`;
+      headline.innerHTML=`今日 <b style="color:var(--butter-deep)">${todayKcal}</b> kcal`;
+      rangeEl.textContent='（尚無體重資料，無法估目標）';
     }
-    /* 原始攝取量 + 熱量拆解 */
+    /* 原始攝取量 + 熱量拆解（配方奶+奶粉+罐頭） */
     const raw=[];
-    if(todayMl>0)raw.push(`🍼 奶 ${todayMl}mL`);
+    if(todayMl>0)raw.push(`🍼 配方奶 ${todayMl}mL`);
     if(todayCan>0)raw.push(`🥫 罐頭 ${todayCan}g`);
     if(todayScoop>0)raw.push(`🥛 奶粉 ${todayScoop}匙`);
     if(todayWater>0)raw.push(`💧 加水 ${todayWater}mL`);
+    const kbits=[];
+    if(milkKcal>0)kbits.push(`配方奶 ${milkKcal}`);
+    if(canKcal>0)kbits.push(`罐頭 ${canKcal}`);
+    if(formulaKcal>0)kbits.push(`奶粉 ${formulaKcal}`);
     document.getElementById('nutriInfo').innerHTML=
       (raw.length?raw.join('・'):'今天還沒有餵食')+
-      (todayKcal>0?`<br>🔥 熱量：罐頭 ${canKcal} + 奶粉 ${formulaKcal} = <b style="color:var(--butter-deep)">${todayKcal} kcal</b>`:'');
-    /* 離乳比例（依熱量） */
+      (todayKcal>0?`<br>🔥 熱量：${kbits.join(' + ')} = <b style="color:var(--butter-deep)">${todayKcal} kcal</b>`:'');
+    /* 離乳比例（熱量佔比）：罐頭(固體) vs 奶類(配方奶+奶粉) */
     const wb=document.getElementById('weanBar');
-    if(todayKcal>0&&(canKcal>0||formulaKcal>0)){
+    const milkyKcal=r1(milkKcal+formulaKcal);
+    if(todayKcal>0&&(canKcal>0||milkyKcal>0)){
       const canPct=Math.round(canKcal/todayKcal*100);
-      const forPct=100-canPct;
+      const milkPct=100-canPct;
       wb.style.display='';
-      wb.innerHTML=`<div style="font-size:11px;color:var(--tabby-soft);margin-bottom:3px">離乳比例（熱量佔比）</div>
+      wb.innerHTML=`<div style="font-size:11px;color:var(--tabby-soft);margin-bottom:3px">離乳比例（熱量佔比・奶類＝配方奶+奶粉）</div>
         <div class="wean-track">
-          ${canPct>0?`<div class="can" style="width:${canPct}%">${canPct>=12?'罐頭 '+canPct+'%':''}</div>`:''}
-          ${forPct>0?`<div class="formula" style="width:${forPct}%">${forPct>=12?'奶粉 '+forPct+'%':''}</div>`:''}
+          ${canPct>0?`<div class="can" style="width:${canPct}%">${canPct>=14?'罐頭 '+canPct+'%':''}</div>`:''}
+          ${milkPct>0?`<div class="formula" style="width:${milkPct}%">${milkPct>=14?'奶類 '+milkPct+'%':''}</div>`:''}
         </div>`;
     }else{
       wb.style.display='none';
@@ -836,13 +855,14 @@ function renderNutritionChart(){
     const feed=(+e.ml||0)>0||(+e.food||0)>0||(+e.formula_scoop||0)>0;
     if(!feed)return;
     const d=e.t.slice(0,10);
-    const o=daily[d]||(daily[d]={can:0,formula:0,canG:0,scoop:0,water:0,ml:0});
+    const o=daily[d]||(daily[d]={can:0,formula:0,milk:0,canG:0,scoop:0,water:0,ml:0});
     o.canG+=(+e.food||0);
     o.scoop+=(+e.formula_scoop||0);
     o.water+=(+e.water_ml||0);
     o.ml+=(+e.ml||0);
     o.can+=(+e.food||0)*FEED_CONFIG.canKcalPerG;
     o.formula+=(+e.formula_scoop||0)*FEED_CONFIG.formulaKcalPerScoop;
+    o.milk+=(+e.ml||0)*milkKcalPerMl();
   });
   const days=Object.keys(daily).sort();
   const legend=document.getElementById('nutriLegend');
@@ -854,30 +874,46 @@ function renderNutritionChart(){
   const bottomY=H-24, topPad=24, scaleH=bottomY-topPad;
 
   if(nutriMode==='kcal'){
-    sub.textContent='kcal・罐頭+奶粉堆疊';
-    legend.innerHTML='<span style="color:#5E8A58">■ 罐頭</span><span style="color:#B08A4A">■ 奶粉</span><span style="color:#E0A93E">┈ 目標</span>';
-    const max=Math.max(...shown.map(d=>daily[d].can+daily[d].formula),10);
+    sub.textContent='kcal・配方奶+奶粉+罐頭堆疊';
+    legend.innerHTML='<span style="color:#5E8A58">■ 罐頭</span><span style="color:#B08A4A">■ 奶粉</span><span style="color:#C9A94A">■ 配方奶</span><span style="color:#D98A2B">┈ 目標</span>';
+    /* 每天目標：用當天(或之前)最近一次體重估算 */
+    const wsAll=entries.filter(e=>e.g!=null).sort((a,b)=>a.t.localeCompare(b.t));
+    const targetForDay=dstr=>{
+      let g=null;
+      for(const w of wsAll){ if(w.t.slice(0,10)<=dstr)g=w.g; else break; }
+      if(g==null&&wsAll.length)g=wsAll[0].g;
+      return g!=null?calorieTarget(g).mid:0;
+    };
+    const dayTotals=shown.map(d=>daily[d].can+daily[d].formula+daily[d].milk);
+    const dayTargets=shown.map(d=>targetForDay(d));
+    const max=Math.max(...dayTotals,...dayTargets,10);
     shown.forEach((d,i)=>{
       const o=daily[d];
       const x=16+gap*i+(gap-barW)/2;
-      const canH=(o.can/max)*scaleH, forH=(o.formula/max)*scaleH;
       let y=bottomY;
-      if(canH>0){ctx.fillStyle='#7FA37A';roundRect(ctx,x,y-canH,barW,canH,4);ctx.fill();y-=canH;}
-      if(forH>0){ctx.fillStyle='#C79A5B';roundRect(ctx,x,y-forH,barW,forH,4);ctx.fill();y-=forH;}
-      const tot=o.can+o.formula;
+      const seg=(v,color)=>{const hh=(v/max)*scaleH;if(hh>0){ctx.fillStyle=color;roundRect(ctx,x,y-hh,barW,hh,3);ctx.fill();y-=hh;}};
+      seg(o.can,'#7FA37A');
+      seg(o.formula,'#C79A5B');
+      seg(o.milk,'#E0C56A');
+      const tot=o.can+o.formula+o.milk;
       if(tot>0){ctx.fillStyle='#5A4A3A';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
         ctx.fillText(Math.round(tot),x+barW/2,y-4);}
       ctx.fillStyle='#8A7C68';ctx.font='10px sans-serif';ctx.textAlign='center';
       ctx.fillText(fmtDay(new Date(d+'T00:00')),x+barW/2,H-8);
-    });
-    const ws=entries.filter(e=>e.g!=null).sort((a,b)=>a.t.localeCompare(b.t));
-    if(ws.length){
-      const tg=calorieTarget(ws[ws.length-1].g).mid;
-      if(tg>0&&tg<=max){
+      /* 當天目標虛線（畫在該日欄位上方，較明顯） */
+      const tg=dayTargets[i];
+      if(tg>0){
         const ty=bottomY-(tg/max)*scaleH;
-        ctx.strokeStyle='rgba(224,169,62,.75)';ctx.setLineDash([4,3]);ctx.lineWidth=1.2;
-        ctx.beginPath();ctx.moveTo(14,ty);ctx.lineTo(W-14,ty);ctx.stroke();ctx.setLineDash([]);
+        ctx.strokeStyle='#D98A2B';ctx.setLineDash([5,3]);ctx.lineWidth=1.6;
+        ctx.beginPath();ctx.moveTo(x-3,ty);ctx.lineTo(x+barW+3,ty);ctx.stroke();ctx.setLineDash([]);
       }
+    });
+    /* 目標標籤（畫在最新一天目標線旁） */
+    const lastTg=dayTargets[dayTargets.length-1];
+    if(lastTg>0){
+      const ty=bottomY-(lastTg/max)*scaleH;
+      ctx.fillStyle='#D98A2B';ctx.font='bold 9px sans-serif';ctx.textAlign='right';
+      ctx.fillText('目標'+lastTg,W-14,Math.max(10,ty-3));
     }
   }else{
     sub.textContent='原始量・罐頭g(柱)＋奶粉匙/水';
@@ -1025,24 +1061,26 @@ bindSeg('tempSeg',null);
 
 /* 表單內即時顯示本餐熱量與建議沖泡水 */
 function updateKcalHint(){
+  const ml=parseFloat(document.getElementById('fMl').value)||0;
   const food=parseFloat(document.getElementById('fFood').value)||0;
   const scoop=parseFloat(document.getElementById('fScoop').value)||0;
-  const kcal=mealKcal({food,formula_scoop:scoop});
+  const kcal=mealKcal({ml,food,formula_scoop:scoop});
   const el=document.getElementById('kcalHint');
   if(!el)return;
   const parts=[];
   if(kcal>0){
+    const milkK=Math.round(ml*milkKcalPerMl()*10)/10;
     const canK=Math.round(food*FEED_CONFIG.canKcalPerG*10)/10;
     const forK=Math.round(scoop*FEED_CONFIG.formulaKcalPerScoop*10)/10;
-    const detail=[food?`罐頭 ${canK}`:'',scoop?`奶粉 ${forK}`:''].filter(Boolean).join(' + ');
-    parts.push(`🔥 本餐約 ${kcal} kcal${detail&&(food&&scoop)?`（${detail}）`:''}`);
+    const bits=[ml?`配方奶 ${milkK}`:'',food?`罐頭 ${canK}`:'',scoop?`奶粉 ${forK}`:''].filter(Boolean);
+    parts.push(`🔥 本餐約 ${kcal} kcal${bits.length>1?`（${bits.join(' + ')}）`:''}`);
   }
   if(scoop>0){
     parts.push(`💧 建議沖泡約 ${Math.round(scoop*FEED_CONFIG.formulaWaterPerScoop)} cc 水（拌罐頭可少加）`);
   }
   el.innerHTML=parts.join('<br>');
 }
-['fFood','fScoop'].forEach(id=>document.getElementById(id).addEventListener('input',updateKcalHint));
+['fMl','fFood','fScoop'].forEach(id=>document.getElementById(id).addEventListener('input',updateKcalHint));
 
 function openSheet(id){
   editingId=id||null;
