@@ -547,13 +547,15 @@ function milkKcalPerMl(){
   return FEED_CONFIG.formulaWaterPerScoop>0
     ? FEED_CONFIG.formulaKcalPerScoop/FEED_CONFIG.formulaWaterPerScoop : 0;
 }
-/* 一筆餵食的熱量：直接喝配方奶(mL) + 奶粉(匙) + 罐頭(g)；額外加水不計熱量。
+/* 食慾折算：實際吃進的比例。沒設食慾＝當作全吃(1)。 */
+function intakeFactor(a){ return a==='none'?0 : a==='few'?0.2 : a==='half'?0.5 : 1; }
+/* 一筆餵食的熱量：直接喝配方奶(mL) + 奶粉(匙) + 罐頭(g)，再依食慾打折；額外加水不計熱量。
    註：配方奶 mL 與奶粉匙為兩個獨立輸入，各自計熱、不會重複。 */
 function mealKcal(e){
   const can=(+e.food||0)*FEED_CONFIG.canKcalPerG;
   const formula=(+e.formula_scoop||0)*FEED_CONFIG.formulaKcalPerScoop;
   const milk=(+e.ml||0)*milkKcalPerMl();
-  return Math.round((can+formula+milk)*10)/10;
+  return Math.round((can+formula+milk)*intakeFactor(e.appetite)*10)/10;
 }
 
 /* ================= 歷史資料（首次自動匯入） ================= */
@@ -707,9 +709,15 @@ function renderStats(){
   const todayCan=r1(today.reduce((s,e)=>s+(+e.food||0),0));
   const todayScoop=r1(today.reduce((s,e)=>s+(+e.formula_scoop||0),0));
   const todayWater=r1(today.reduce((s,e)=>s+(+e.water_ml||0),0));
-  const canKcal=r1(todayCan*FEED_CONFIG.canKcalPerG);
-  const formulaKcal=r1(todayScoop*FEED_CONFIG.formulaKcalPerScoop);
-  const milkKcal=r1(todayMl*milkKcalPerMl());   /* 直接喝的配方奶熱量 */
+  /* 熱量依「每一餐各自的食慾」打折後加總（不吃=0、一半=50%…） */
+  let canKcal=0,formulaKcal=0,milkKcal=0;
+  today.forEach(e=>{
+    const f=intakeFactor(e.appetite);
+    canKcal+=(+e.food||0)*FEED_CONFIG.canKcalPerG*f;
+    formulaKcal+=(+e.formula_scoop||0)*FEED_CONFIG.formulaKcalPerScoop*f;
+    milkKcal+=(+e.ml||0)*milkKcalPerMl()*f;
+  });
+  canKcal=r1(canKcal);formulaKcal=r1(formulaKcal);milkKcal=r1(milkKcal);
   const todayKcal=r1(canKcal+formulaKcal+milkKcal);
 
   /* 今日攝取卡片（中間那張） */
@@ -761,9 +769,11 @@ function renderStats(){
     if(milkKcal>0)kbits.push(`配方奶 ${milkKcal}`);
     if(canKcal>0)kbits.push(`罐頭 ${canKcal}`);
     if(formulaKcal>0)kbits.push(`奶粉 ${formulaKcal}`);
+    const hasPartial=today.some(e=>e.appetite&&e.appetite!=='all'&&((+e.food||0)>0||(+e.formula_scoop||0)>0||(+e.ml||0)>0));
     document.getElementById('nutriInfo').innerHTML=
       (raw.length?raw.join('・'):'今天還沒有餵食')+
-      (todayKcal>0?`<br>🔥 熱量：${kbits.join(' + ')} = <b style="color:var(--butter-deep)">${todayKcal} kcal</b>`:'');
+      (todayKcal>0?`<br>🔥 熱量：${kbits.join(' + ')} = <b style="color:var(--butter-deep)">${todayKcal} kcal</b>`+
+        (hasPartial?'<br><span style="font-size:10px">（上方為放下去的量；熱量已依食慾折算實際吃進的比例）</span>':''):'');
     /* 離乳比例（熱量佔比）：罐頭(固體) vs 奶類(配方奶+奶粉) */
     const wb=document.getElementById('weanBar');
     const milkyKcal=r1(milkKcal+formulaKcal);
@@ -861,9 +871,10 @@ function renderNutritionChart(){
     o.scoop+=(+e.formula_scoop||0);
     o.water+=(+e.water_ml||0);
     o.ml+=(+e.ml||0);
-    o.can+=(+e.food||0)*FEED_CONFIG.canKcalPerG;
-    o.formula+=(+e.formula_scoop||0)*FEED_CONFIG.formulaKcalPerScoop;
-    o.milk+=(+e.ml||0)*milkKcalPerMl();
+    const f=intakeFactor(e.appetite);
+    o.can+=(+e.food||0)*FEED_CONFIG.canKcalPerG*f;
+    o.formula+=(+e.formula_scoop||0)*FEED_CONFIG.formulaKcalPerScoop*f;
+    o.milk+=(+e.ml||0)*milkKcalPerMl()*f;
   });
   const days=Object.keys(daily).sort();
   const legend=document.getElementById('nutriLegend');
