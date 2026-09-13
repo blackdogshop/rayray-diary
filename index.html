@@ -63,7 +63,8 @@
   .progress-bar.low{background:var(--leaf)}
   .wean-track{display:flex;height:16px;border-radius:99px;overflow:hidden;font-size:10px;font-weight:700;color:#fff}
   .wean-track .can{background:var(--leaf);display:flex;align-items:center;justify-content:center;min-width:0}
-  .wean-track .formula{background:#C79A5B;display:flex;align-items:center;justify-content:center;min-width:0}
+  .wean-track .dry{background:#C79A5B;display:flex;align-items:center;justify-content:center;min-width:0}
+  .wean-track .formula{background:#E0C56A;display:flex;align-items:center;justify-content:center;min-width:0;color:#5A4A3A}
   .chart-wrap{position:relative}
   .chart-tip{
     position:absolute;display:none;pointer-events:none;z-index:5;
@@ -139,6 +140,19 @@
   .field textarea{resize:vertical;min-height:56px;line-height:1.5}
   .field input:focus,.field textarea:focus{outline:2px solid var(--butter);border-color:transparent}
   .two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .item-row{display:flex;gap:6px;align-items:center;margin-bottom:5px}
+  .item-row select{flex:1 1 auto;min-width:0;padding:9px 8px;border:1px solid var(--stripe);border-radius:9px;font-size:13px;font-family:inherit;background:#fff;color:var(--tabby)}
+  .item-row input{width:62px;padding:9px 4px;border:1px solid var(--stripe);border-radius:9px;font-size:14px;font-family:inherit;text-align:center;color:var(--tabby)}
+  .item-row .unit{font-size:11px;color:var(--tabby-soft);width:18px;flex-shrink:0}
+  .item-row .rm{border:none;background:none;color:var(--paw);font-size:20px;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0}
+  .item-quick{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 9px 2px}
+  .item-quick button{border:1px solid var(--stripe);background:#fff;border-radius:99px;font-size:11px;padding:3px 10px;color:var(--butter-deep);font-weight:700;cursor:pointer;font-family:inherit}
+  .food-mgr-item{display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid var(--stripe);border-radius:10px;margin-bottom:7px;background:#fff}
+  .food-mgr-item .fm-main{flex:1;min-width:0}
+  .food-mgr-item .fm-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .food-mgr-item .fm-sub{font-size:10.5px;color:var(--tabby-soft);margin-top:1px}
+  .food-mgr-item.off{opacity:.5}
+  .food-mgr-item .fm-btn{border:1px solid var(--stripe);background:#fff;border-radius:8px;font-size:11px;padding:5px 9px;cursor:pointer;font-family:inherit;color:var(--tabby-soft);flex-shrink:0}
   .seg{display:flex;flex-wrap:wrap;gap:8px}
   .seg button{
     flex:1 1 calc(50% - 4px);min-width:64px;padding:10px 0;border-radius:11px;border:1.5px solid var(--stripe);
@@ -350,30 +364,25 @@
   </div>
 
   <div class="field">
-    <label>🍽️ 餵食（混合餐可一起填，沒有的留空）</label>
+    <label>🍽️ 餵食（一餐可加多種食物）</label>
     <div style="background:#fff;border:1.5px solid var(--stripe);border-radius:11px;padding:10px 12px">
-      <div class="two-col">
-        <div class="field" style="margin-bottom:9px">
-          <label style="font-size:11px">🍼 直接喝配方奶 (mL)</label>
-          <input type="number" id="fMl" inputmode="decimal" step="0.5" min="0" placeholder="已泡好、有熱量" style="border:1px solid var(--stripe)">
-        </div>
-        <div class="field" style="margin-bottom:9px">
-          <label style="font-size:11px">🥫 離乳罐頭 (g)</label>
-          <input type="number" id="fFood" inputmode="decimal" step="0.5" min="0" placeholder="罐頭克數" style="border:1px solid var(--stripe)">
+      <div id="itemRows"></div>
+      <button type="button" id="addItemBtn" class="photo-more" style="margin:2px 0 8px">＋ 加入食物</button>
+      <div class="field" style="margin-bottom:8px">
+        <label style="font-size:11px">💧 額外加水 (mL・不計熱量)</label>
+        <input type="number" id="fWater" inputmode="decimal" step="1" min="0" placeholder="只算水分" style="border:1px solid var(--stripe)">
+      </div>
+      <div class="field" style="margin-bottom:2px">
+        <label style="font-size:11px">🍳 餵食方式（可留空）</label>
+        <div class="seg" id="methodSeg" style="gap:6px">
+          <button type="button" data-v="乾吃">乾吃</button>
+          <button type="button" data-v="泡軟">泡軟</button>
+          <button type="button" data-v="拌罐">拌罐</button>
+          <button type="button" data-v="奶泡乾糧">奶泡乾糧</button>
+          <button type="button" data-v="其他">其他</button>
         </div>
       </div>
-      <div class="two-col">
-        <div class="field" style="margin-bottom:8px">
-          <label style="font-size:11px">🥛 奶粉 (湯匙・拌食物)</label>
-          <input type="number" id="fScoop" inputmode="decimal" step="0.5" min="0" placeholder="湯匙數" style="border:1px solid var(--stripe)">
-        </div>
-        <div class="field" style="margin-bottom:8px">
-          <label style="font-size:11px">💧 額外加水 (mL・不計熱量)</label>
-          <input type="number" id="fWater" inputmode="decimal" step="1" min="0" placeholder="只算水分" style="border:1px solid var(--stripe)">
-        </div>
-      </div>
-      <div style="font-size:10px;color:#8A7C68;line-height:1.5;margin-bottom:4px">直接喝的已泡好配方奶 → 填「配方奶 mL」；拌進罐頭的奶粉 → 填「奶粉 匙」＋「加水」（水不算熱量）。</div>
-      <div id="kcalHint" style="font-size:11.5px;color:var(--butter-deep);font-weight:700;text-align:center;padding-top:2px;line-height:1.5"></div>
+      <div id="kcalHint" style="font-size:11.5px;color:var(--butter-deep);font-weight:700;text-align:center;padding-top:4px;line-height:1.5"></div>
     </div>
   </div>
 
@@ -460,34 +469,54 @@
 <div class="overlay" id="setOverlay"></div>
 <div class="sheet" id="setSheet">
   <h3>🍽️ 食物設定</h3>
-  <div class="sheet-sub">換品牌時改這裡的數字就好，不用改程式。改完全家的畫面都會即時套用。</div>
+  <div class="sheet-sub">管理所有食物：新增、編輯熱量、停用舊食物（停用不會刪除）。換品牌只要在這裡新增一筆，不用改程式。</div>
 
-  <div class="field">
-    <label>🥫 罐頭名稱</label>
-    <input type="text" id="sCanName" placeholder="例如：皇家離乳罐">
-  </div>
-  <div class="field">
-    <label>🥫 罐頭熱量 (kcal / g)</label>
-    <input type="number" id="sCanKcal" inputmode="decimal" step="0.01" min="0" placeholder="看罐身 ME，例如 0.9">
-    <div style="font-size:10.5px;color:#8A7C68;margin-top:4px">罐身通常標「kcal/100g」→ 除以 100 就是 kcal/g（例如 90 kcal/100g = 0.9）</div>
-  </div>
-  <div class="field">
-    <label>🥛 奶粉名稱</label>
-    <input type="text" id="sFormulaName" placeholder="例如：貓奶粉">
-  </div>
-  <div class="two-col">
-    <div class="field">
-      <label>🥛 奶粉 (kcal / 湯匙)</label>
-      <input type="number" id="sFormulaKcal" inputmode="decimal" step="0.1" min="0" placeholder="例如 12.4">
+  <div id="foodList"></div>
+  <button type="button" id="addFoodBtn" class="photo-more" style="margin:4px 0 8px">＋ 新增食物</button>
+
+  <div id="foodForm" hidden style="background:#fff;border:1.5px solid var(--stripe);border-radius:12px;padding:12px">
+    <div class="field" style="margin-bottom:9px">
+      <label>名稱</label>
+      <input type="text" id="fdName" placeholder="例如：BC34W 超軟慕斯">
     </div>
-    <div class="field">
-      <label>💧 沖泡 (cc / 湯匙)</label>
-      <input type="number" id="sFormulaWater" inputmode="decimal" step="1" min="0" placeholder="例如 30">
+    <div class="two-col">
+      <div class="field" style="margin-bottom:9px"><label>品牌</label><input type="text" id="fdBrand" placeholder="Royal Canin"></div>
+      <div class="field" style="margin-bottom:9px"><label>包裝</label><input type="text" id="fdPackage" placeholder="195g"></div>
     </div>
+    <div class="field" style="margin-bottom:9px">
+      <label>類型</label>
+      <div class="seg" id="fdTypeSeg" style="gap:6px">
+        <button type="button" data-v="wet">濕食/罐頭</button>
+        <button type="button" data-v="dry">乾糧</button>
+        <button type="button" data-v="milk_powder">奶粉</button>
+        <button type="button" data-v="formula">配方奶</button>
+        <button type="button" data-v="other">其他</button>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="field" style="margin-bottom:6px">
+        <label id="fdKcalLbl">熱量 (kcal/g)</label>
+        <input type="number" id="fdKcal" inputmode="decimal" step="0.01" min="0" placeholder="看包裝代謝能">
+      </div>
+      <div class="field" id="fdExtraWrap" style="margin-bottom:6px;display:none">
+        <label id="fdExtraLbl">每匙沖泡 (cc)</label>
+        <input type="number" id="fdExtra" inputmode="decimal" step="1" min="0" placeholder="30">
+      </div>
+    </div>
+    <div style="font-size:10.5px;color:#8A7C68;margin:-2px 0 9px">包裝常標「kcal/100g」→ 除以 100 就是 kcal/g（例：400/100=4.0、90/100=0.9）。</div>
+    <div class="field" style="margin-bottom:9px"><label>備註（可空白）</label><input type="text" id="fdNotes" placeholder="年齡階段、注意事項…"></div>
+    <div class="field" style="margin-bottom:6px">
+      <label>狀態</label>
+      <div class="seg" id="fdActiveSeg">
+        <button type="button" data-v="on">啟用</button>
+        <button type="button" data-v="off">停用（不刪）</button>
+      </div>
+    </div>
+    <button class="save" id="fdSaveBtn">儲存食物</button>
+    <button class="cancel" id="fdCancelBtn">取消</button>
   </div>
 
-  <button class="save" id="setSaveBtn">儲存設定</button>
-  <button class="cancel" id="setCancelBtn">取消</button>
+  <button class="cancel" id="setCancelBtn">關閉</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -549,13 +578,91 @@ function milkKcalPerMl(){
 }
 /* 食慾折算：實際吃進的比例。沒設食慾＝當作全吃(1)。 */
 function intakeFactor(a){ return a==='none'?0 : a==='few'?0.2 : a==='half'?0.5 : 1; }
-/* 一筆餵食的熱量：直接喝配方奶(mL) + 奶粉(匙) + 罐頭(g)，再依食慾打折；額外加水不計熱量。
-   註：配方奶 mL 與奶粉匙為兩個獨立輸入，各自計熱、不會重複。 */
+
+/* ================= 食物資料庫（food_items） ================= */
+let FOODS = [];  /* {id,name,brand,food_type(wet/dry/milk_powder/formula/other),kcal_per_g,kcal_per_ml,kcal_per_scoop,scoop_grams,package_size,age_range,is_active,notes} */
+const FOOD_TYPES = {wet:'濕食/罐頭',dry:'乾糧',milk_powder:'奶粉',formula:'配方奶',other:'其他'};
+const FOOD_UNIT = {wet:'g',dry:'g',milk_powder:'匙',formula:'mL',other:'g'};
+function foodById(id){ return FOODS.find(f=>f.id===id)||null; }
+function activeFoods(){ return FOODS.filter(f=>f.is_active!==false); }
+/* 單一食物項目的熱量（優先用存檔時的快照 kcal，沒有才用食物庫換算） */
+function itemKcal(it){
+  if(it&&it.kcal!=null&&it.kcal!=='') return +it.kcal||0;
+  const f=foodById(it&&it.food_id); if(!f) return 0;
+  const amt=+it.amount||0, u=it.unit||FOOD_UNIT[f.food_type]||'g';
+  if(u==='g') return amt*(+f.kcal_per_g||0);
+  if(u==='mL'||u==='ml') return amt*(+f.kcal_per_ml||0);
+  if(u==='匙'||u==='scoop') return amt*(+f.kcal_per_scoop||0);
+  return 0;
+}
+/* 一餐的營養拆解（同時支援新 items[] 與舊欄位；kcal 已依食慾折算，原始量不折算） */
+function mealBuckets(e){
+  const b={wetKcal:0,dryKcal:0,powderKcal:0,formulaKcal:0,otherKcal:0,
+           wetG:0,dryG:0,powderScoop:0,formulaMl:0,waterMl:(+e.water_ml||0)};
+  if(Array.isArray(e.items)&&e.items.length){
+    e.items.forEach(it=>{
+      const t=it.food_type||(foodById(it.food_id)||{}).food_type||'other';
+      const amt=+it.amount||0, k=itemKcal(it);
+      if(t==='wet'){b.wetKcal+=k;b.wetG+=amt;}
+      else if(t==='dry'){b.dryKcal+=k;b.dryG+=amt;}
+      else if(t==='milk_powder'){b.powderKcal+=k;b.powderScoop+=amt;}
+      else if(t==='formula'){b.formulaKcal+=k;b.formulaMl+=amt;}
+      else {b.otherKcal+=k;}
+    });
+  }else{
+    /* 舊記錄：罐頭(g)=濕食、奶粉匙、配方奶(mL) */
+    b.wetKcal+=(+e.food||0)*FEED_CONFIG.canKcalPerG; b.wetG+=(+e.food||0);
+    b.powderKcal+=(+e.formula_scoop||0)*FEED_CONFIG.formulaKcalPerScoop; b.powderScoop+=(+e.formula_scoop||0);
+    b.formulaKcal+=(+e.ml||0)*milkKcalPerMl(); b.formulaMl+=(+e.ml||0);
+  }
+  const f=intakeFactor(e.appetite);
+  ['wetKcal','dryKcal','powderKcal','formulaKcal','otherKcal'].forEach(k=>b[k]*=f);
+  return b;
+}
+/* 一餐總熱量 */
 function mealKcal(e){
-  const can=(+e.food||0)*FEED_CONFIG.canKcalPerG;
-  const formula=(+e.formula_scoop||0)*FEED_CONFIG.formulaKcalPerScoop;
-  const milk=(+e.ml||0)*milkKcalPerMl();
-  return Math.round((can+formula+milk)*intakeFactor(e.appetite)*10)/10;
+  const b=mealBuckets(e);
+  return Math.round((b.wetKcal+b.dryKcal+b.powderKcal+b.formulaKcal+b.otherKcal)*10)/10;
+}
+/* 這一餐有沒有任何餵食內容 */
+function hasFeed(e){
+  if(Array.isArray(e.items)&&e.items.some(it=>(+it.amount||0)>0)) return true;
+  return (+e.ml||0)>0||(+e.food||0)>0||(+e.formula_scoop||0)>0;
+}
+
+/* ================= 食物庫：預載與即時同步 ================= */
+const FOOD_COL='food_items';
+/* 預載目前會吃的食物（皆可在食物設定編輯，熱量不寫死於程式） */
+function defaultFoods(){
+  const milkPerMl=Math.round(milkKcalPerMl()*1000)/1000;
+  return [
+    {id:'bc34',   name:'Mother&Babycat BC34 乾糧', brand:'Royal Canin', food_type:'dry',
+     kcal_per_g:4.0, package_size:'', age_range:'離乳~4月', is_active:true, notes:'請對包裝代謝能確認（約 400 kcal/100g）'},
+    {id:'bc34w',  name:'Mother&Babycat BC34W 超軟慕斯', brand:'Royal Canin', food_type:'wet',
+     kcal_per_g:0.9, package_size:'195g', age_range:'離乳~4月', is_active:true, notes:'請對包裝代謝能確認'},
+    {id:'powder', name:FEED_CONFIG.formulaName||'奶粉', brand:'', food_type:'milk_powder',
+     kcal_per_scoop:FEED_CONFIG.formulaKcalPerScoop, scoop_grams:'', is_active:true,
+     notes:`1 匙約沖 ${FEED_CONFIG.formulaWaterPerScoop}cc 水`},
+    {id:'formula',name:'配方奶（泡好）', brand:'', food_type:'formula',
+     kcal_per_ml:milkPerMl, is_active:true, notes:'依奶粉沖泡比例換算'}
+  ];
+}
+async function seedFoodsIfEmpty(){
+  try{
+    const marker=doc(db,'meta','foodsSeeded');
+    const m=await getDoc(marker);
+    if(m.exists())return;
+    const batch=writeBatch(db);
+    defaultFoods().forEach(f=>{const{id,...rest}=f; batch.set(doc(db,FOOD_COL,id),rest);});
+    batch.set(marker,{at:new Date().toISOString()});
+    await batch.commit();
+  }catch(err){ console.error('seed foods error',err); }
+}
+function startFoodsListening(){
+  onSnapshot(collection(db,FOOD_COL),
+    snap=>{ FOODS=snap.docs.map(d=>({id:d.id,...d.data()})); renderAll(); refreshFoodPickers(); renderFoodManager(); },
+    err=>console.error('foods listen error',err)
+  );
 }
 
 /* ================= 歷史資料（首次自動匯入） ================= */
@@ -702,32 +809,24 @@ function renderStats(){
     banner.style.display='none';
   }
 
-  /* ===== 今日攝取彙總 ===== */
+  /* ===== 今日攝取彙總（濕食/乾糧/奶粉/配方奶，新舊記錄相容） ===== */
   const today=entries.filter(e=>e.t&&e.t.startsWith(dkey));
   const r1=n=>Math.round(n*10)/10;
-  const todayMl=r1(today.reduce((s,e)=>s+(+e.ml||0),0));
-  const todayCan=r1(today.reduce((s,e)=>s+(+e.food||0),0));
-  const todayScoop=r1(today.reduce((s,e)=>s+(+e.formula_scoop||0),0));
-  const todayWater=r1(today.reduce((s,e)=>s+(+e.water_ml||0),0));
-  /* 熱量依「每一餐各自的食慾」打折後加總（不吃=0、一半=50%…） */
-  let canKcal=0,formulaKcal=0,milkKcal=0;
-  today.forEach(e=>{
-    const f=intakeFactor(e.appetite);
-    canKcal+=(+e.food||0)*FEED_CONFIG.canKcalPerG*f;
-    formulaKcal+=(+e.formula_scoop||0)*FEED_CONFIG.formulaKcalPerScoop*f;
-    milkKcal+=(+e.ml||0)*milkKcalPerMl()*f;
-  });
-  canKcal=r1(canKcal);formulaKcal=r1(formulaKcal);milkKcal=r1(milkKcal);
-  const todayKcal=r1(canKcal+formulaKcal+milkKcal);
+  let wetKcal=0,dryKcal=0,powderKcal=0,formulaKcal=0,otherKcal=0;
+  let wetG=0,dryG=0,powderScoop=0,formulaMl=0,waterMl=0;
+  today.forEach(e=>{const b=mealBuckets(e);
+    wetKcal+=b.wetKcal;dryKcal+=b.dryKcal;powderKcal+=b.powderKcal;formulaKcal+=b.formulaKcal;otherKcal+=b.otherKcal;
+    wetG+=b.wetG;dryG+=b.dryG;powderScoop+=b.powderScoop;formulaMl+=b.formulaMl;waterMl+=b.waterMl;});
+  wetKcal=r1(wetKcal);dryKcal=r1(dryKcal);powderKcal=r1(powderKcal);formulaKcal=r1(formulaKcal);otherKcal=r1(otherKcal);
+  const todayKcal=r1(wetKcal+dryKcal+powderKcal+formulaKcal+otherKcal);
+  const milkyKcal=r1(powderKcal+formulaKcal);
 
-  /* 今日攝取卡片（中間那張） */
   document.getElementById('statMilk').textContent=todayKcal>0?todayKcal+' kcal':'–';
   const tgt=last?calorieTarget(last.g):null;
   document.getElementById('statMilkFood').textContent=tgt?`目標約 ${tgt.mid}`:'';
 
   /* 餵食次數與最後一餐 */
-  const feeds=today.filter(e=>(+e.ml||0)>0||(+e.food||0)>0||(+e.formula_scoop||0)>0)
-    .sort((a,b)=>b.t.localeCompare(a.t));
+  const feeds=today.filter(hasFeed).sort((a,b)=>b.t.localeCompare(a.t));
   const summary=document.getElementById('daySummary');
   if(feeds.length){
     const lt=new Date(feeds[0].t);
@@ -742,7 +841,6 @@ function renderStats(){
   const nutri=document.getElementById('nutriCard');
   if(todayKcal>0||tgt){
     nutri.style.display='';
-    /* 標題數字 + 目標進度條（百分比對中間估算值 tgt.mid） */
     const bar=document.getElementById('nutriBar');
     const headline=document.getElementById('nutriHeadline');
     const rangeEl=document.getElementById('nutriRange');
@@ -759,32 +857,35 @@ function renderStats(){
       headline.innerHTML=`今日 <b style="color:var(--butter-deep)">${todayKcal}</b> kcal`;
       rangeEl.textContent='（尚無體重資料，無法估目標）';
     }
-    /* 原始攝取量 + 熱量拆解（配方奶+奶粉+罐頭） */
     const raw=[];
-    if(todayMl>0)raw.push(`🍼 配方奶 ${todayMl}mL`);
-    if(todayCan>0)raw.push(`🥫 罐頭 ${todayCan}g`);
-    if(todayScoop>0)raw.push(`🥛 奶粉 ${todayScoop}匙`);
-    if(todayWater>0)raw.push(`💧 加水 ${todayWater}mL`);
+    if(wetG>0)raw.push(`🥫 濕食 ${wetG}g`);
+    if(dryG>0)raw.push(`🥣 乾糧 ${dryG}g`);
+    if(formulaMl>0)raw.push(`🍼 配方奶 ${formulaMl}mL`);
+    if(powderScoop>0)raw.push(`🥛 奶粉 ${powderScoop}匙`);
+    if(waterMl>0)raw.push(`💧 加水 ${waterMl}mL`);
     const kbits=[];
-    if(milkKcal>0)kbits.push(`配方奶 ${milkKcal}`);
-    if(canKcal>0)kbits.push(`罐頭 ${canKcal}`);
-    if(formulaKcal>0)kbits.push(`奶粉 ${formulaKcal}`);
-    const hasPartial=today.some(e=>e.appetite&&e.appetite!=='all'&&((+e.food||0)>0||(+e.formula_scoop||0)>0||(+e.ml||0)>0));
+    if(wetKcal>0)kbits.push(`濕食 ${wetKcal}`);
+    if(dryKcal>0)kbits.push(`乾糧 ${dryKcal}`);
+    if(powderKcal>0)kbits.push(`奶粉 ${powderKcal}`);
+    if(formulaKcal>0)kbits.push(`配方奶 ${formulaKcal}`);
+    if(otherKcal>0)kbits.push(`其他 ${otherKcal}`);
+    const hasPartial=today.some(e=>e.appetite&&e.appetite!=='all'&&hasFeed(e));
     document.getElementById('nutriInfo').innerHTML=
       (raw.length?raw.join('・'):'今天還沒有餵食')+
       (todayKcal>0?`<br>🔥 熱量：${kbits.join(' + ')} = <b style="color:var(--butter-deep)">${todayKcal} kcal</b>`+
         (hasPartial?'<br><span style="font-size:10px">（上方為放下去的量；熱量已依食慾折算實際吃進的比例）</span>':''):'');
-    /* 離乳比例（熱量佔比）：罐頭(固體) vs 奶類(配方奶+奶粉) */
+    /* 今日飲食結構（熱量佔比）：濕食 / 乾糧 / 奶類 */
     const wb=document.getElementById('weanBar');
-    const milkyKcal=r1(milkKcal+formulaKcal);
-    if(todayKcal>0&&(canKcal>0||milkyKcal>0)){
-      const canPct=Math.round(canKcal/todayKcal*100);
-      const milkPct=100-canPct;
+    if(todayKcal>0){
+      const wp=Math.round(wetKcal/todayKcal*100);
+      const dp=Math.round(dryKcal/todayKcal*100);
+      const mp=Math.round(milkyKcal/todayKcal*100);
       wb.style.display='';
-      wb.innerHTML=`<div style="font-size:11px;color:var(--tabby-soft);margin-bottom:3px">離乳比例（熱量佔比・奶類＝配方奶+奶粉）</div>
+      wb.innerHTML=`<div style="font-size:11px;color:var(--tabby-soft);margin-bottom:3px">今日飲食結構（熱量佔比・奶類＝配方奶+奶粉）</div>
         <div class="wean-track">
-          ${canPct>0?`<div class="can" style="width:${canPct}%">${canPct>=14?'罐頭 '+canPct+'%':''}</div>`:''}
-          ${milkPct>0?`<div class="formula" style="width:${milkPct}%">${milkPct>=14?'奶類 '+milkPct+'%':''}</div>`:''}
+          ${wp>0?`<div class="can" style="width:${wp}%">${wp>=14?'濕 '+wp+'%':''}</div>`:''}
+          ${dp>0?`<div class="dry" style="width:${dp}%">${dp>=14?'乾 '+dp+'%':''}</div>`:''}
+          ${mp>0?`<div class="formula" style="width:${mp}%">${mp>=14?'奶 '+mp+'%':''}</div>`:''}
         </div>`;
     }else{
       wb.style.display='none';
@@ -863,18 +964,14 @@ function renderNutritionChart(){
 
   const daily={};
   entries.forEach(e=>{
-    const feed=(+e.ml||0)>0||(+e.food||0)>0||(+e.formula_scoop||0)>0;
-    if(!feed)return;
+    if(!hasFeed(e))return;
     const d=e.t.slice(0,10);
-    const o=daily[d]||(daily[d]={can:0,formula:0,milk:0,canG:0,scoop:0,water:0,ml:0});
-    o.canG+=(+e.food||0);
-    o.scoop+=(+e.formula_scoop||0);
-    o.water+=(+e.water_ml||0);
-    o.ml+=(+e.ml||0);
-    const f=intakeFactor(e.appetite);
-    o.can+=(+e.food||0)*FEED_CONFIG.canKcalPerG*f;
-    o.formula+=(+e.formula_scoop||0)*FEED_CONFIG.formulaKcalPerScoop*f;
-    o.milk+=(+e.ml||0)*milkKcalPerMl()*f;
+    const o=daily[d]||(daily[d]={wet:0,dry:0,milky:0,wetG:0,dryG:0,scoop:0,formulaMl:0,water:0});
+    const b=mealBuckets(e);
+    o.wet+=b.wetKcal+b.otherKcal;
+    o.dry+=b.dryKcal;
+    o.milky+=b.powderKcal+b.formulaKcal;
+    o.wetG+=b.wetG; o.dryG+=b.dryG; o.scoop+=b.powderScoop; o.formulaMl+=b.formulaMl; o.water+=b.waterMl;
   });
   const days=Object.keys(daily).sort();
   const legend=document.getElementById('nutriLegend');
@@ -886,8 +983,8 @@ function renderNutritionChart(){
   const bottomY=H-24, topPad=24, scaleH=bottomY-topPad;
 
   if(nutriMode==='kcal'){
-    sub.textContent='kcal・配方奶+奶粉+罐頭堆疊';
-    legend.innerHTML='<span style="color:#5E8A58">■ 罐頭</span><span style="color:#B08A4A">■ 奶粉</span><span style="color:#C9A94A">■ 配方奶</span><span style="color:#D98A2B">┈ 目標</span>';
+    sub.textContent='kcal・濕食+乾糧+奶類堆疊';
+    legend.innerHTML='<span style="color:#5E8A58">■ 濕食</span><span style="color:#B08A4A">■ 乾糧</span><span style="color:#C9A94A">■ 奶類</span><span style="color:#D98A2B">┈ 目標</span>';
     /* 每天目標：用當天(或之前)最近一次體重估算 */
     const wsAll=entries.filter(e=>e.g!=null).sort((a,b)=>a.t.localeCompare(b.t));
     const targetForDay=dstr=>{
@@ -896,7 +993,7 @@ function renderNutritionChart(){
       if(g==null&&wsAll.length)g=wsAll[0].g;
       return g!=null?calorieTarget(g).mid:0;
     };
-    const dayTotals=shown.map(d=>daily[d].can+daily[d].formula+daily[d].milk);
+    const dayTotals=shown.map(d=>daily[d].wet+daily[d].dry+daily[d].milky);
     const dayTargets=shown.map(d=>targetForDay(d));
     const max=Math.max(...dayTotals,...dayTargets,10);
     shown.forEach((d,i)=>{
@@ -904,15 +1001,14 @@ function renderNutritionChart(){
       const x=16+gap*i+(gap-barW)/2;
       let y=bottomY;
       const seg=(v,color)=>{const hh=(v/max)*scaleH;if(hh>0){ctx.fillStyle=color;roundRect(ctx,x,y-hh,barW,hh,3);ctx.fill();y-=hh;}};
-      seg(o.can,'#7FA37A');
-      seg(o.formula,'#C79A5B');
-      seg(o.milk,'#E0C56A');
-      const tot=o.can+o.formula+o.milk;
+      seg(o.wet,'#7FA37A');
+      seg(o.dry,'#C79A5B');
+      seg(o.milky,'#E0C56A');
+      const tot=o.wet+o.dry+o.milky;
       if(tot>0){ctx.fillStyle='#5A4A3A';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
         ctx.fillText(Math.round(tot),x+barW/2,y-4);}
       ctx.fillStyle='#8A7C68';ctx.font='10px sans-serif';ctx.textAlign='center';
       ctx.fillText(fmtDay(new Date(d+'T00:00')),x+barW/2,H-8);
-      /* 當天目標虛線（畫在該日欄位上方，較明顯） */
       const tg=dayTargets[i];
       if(tg>0){
         const ty=bottomY-(tg/max)*scaleH;
@@ -920,7 +1016,6 @@ function renderNutritionChart(){
         ctx.beginPath();ctx.moveTo(x-3,ty);ctx.lineTo(x+barW+3,ty);ctx.stroke();ctx.setLineDash([]);
       }
     });
-    /* 目標標籤（畫在最新一天目標線旁） */
     const lastTg=dayTargets[dayTargets.length-1];
     if(lastTg>0){
       const ty=bottomY-(lastTg/max)*scaleH;
@@ -928,18 +1023,19 @@ function renderNutritionChart(){
       ctx.fillText('目標'+lastTg,W-14,Math.max(10,ty-3));
     }
   }else{
-    sub.textContent='原始量・罐頭g(柱)＋奶粉匙/水';
-    legend.innerHTML='<span style="color:#5E8A58">■ 罐頭g</span><span style="color:#7B6A99">🥛匙</span><span style="color:#5B87A8">💧水</span>';
-    const max=Math.max(...shown.map(d=>daily[d].canG),1);
+    sub.textContent='原始量・濕食g(柱)＋乾糧/奶粉/配方奶/水';
+    legend.innerHTML='<span style="color:#5E8A58">■ 濕食g</span><span style="color:#B08A4A">🥣乾</span><span style="color:#7B6A99">🥛匙</span><span style="color:#5B87A8">💧水</span>';
+    const max=Math.max(...shown.map(d=>daily[d].wetG),1);
     shown.forEach((d,i)=>{
       const o=daily[d];
       const x=16+gap*i+(gap-barW)/2;
-      const h=(o.canG/max)*scaleH;
+      const h=(o.wetG/max)*scaleH;
       ctx.textAlign='center';
       if(h>0){ctx.fillStyle='#7FA37A';roundRect(ctx,x,bottomY-h,barW,h,4);ctx.fill();
-        ctx.fillStyle='#5A4A3A';ctx.font='bold 10px sans-serif';ctx.fillText(Math.round(o.canG*10)/10+'g',x+barW/2,bottomY-h-4);}
+        ctx.fillStyle='#5A4A3A';ctx.font='bold 10px sans-serif';ctx.fillText(Math.round(o.wetG*10)/10+'g',x+barW/2,bottomY-h-4);}
       const ann=[];
-      if(o.ml>0)ann.push('🍼'+Math.round(o.ml));
+      if(o.dryG>0)ann.push('🥣'+Math.round(o.dryG*10)/10);
+      if(o.formulaMl>0)ann.push('🍼'+Math.round(o.formulaMl));
       if(o.scoop>0)ann.push('🥛'+(Math.round(o.scoop*10)/10));
       if(o.water>0)ann.push('💧'+Math.round(o.water));
       if(ann.length){ctx.fillStyle='#7B6A99';ctx.font='9px sans-serif';ctx.fillText(ann.join(' '),x+barW/2,H-18);}
@@ -966,9 +1062,14 @@ function makeEntryEl(it){
   e.className='entry';
   const dt=new Date(it.t);
   const parts=[];
-  if(it.ml)parts.push(`<span class="ml">${it.ml} <small>mL</small></span>`);
-  if(it.food)parts.push(`<span class="ml" style="color:var(--leaf)">🥫 ${it.food}<small>g</small></span>`);
-  if(it.formula_scoop)parts.push(`<span class="ml" style="color:#B5793F">🥛 ${it.formula_scoop}<small>匙</small></span>`);
+  if(Array.isArray(it.items)&&it.items.length){
+    it.items.forEach(x=>{const u=x.unit||FOOD_UNIT[x.food_type]||'g';
+      parts.push(`<span class="ml" style="color:var(--leaf)">${FOOD_EMOJI[x.food_type]||''} ${x.amount}<small>${u}</small></span>`);});
+  }else{
+    if(it.ml)parts.push(`<span class="ml">${it.ml} <small>mL</small></span>`);
+    if(it.food)parts.push(`<span class="ml" style="color:var(--leaf)">🥫 ${it.food}<small>g</small></span>`);
+    if(it.formula_scoop)parts.push(`<span class="ml" style="color:#B5793F">🥛 ${it.formula_scoop}<small>匙</small></span>`);
+  }
   if(it.g!=null)parts.push(`<span class="gw">⚖️ ${it.g}<small>g</small></span>`);
   if(!parts.length)parts.push('<span class="ml"><small>觀察記錄</small></span>');
   const kc=mealKcal(it);
@@ -1019,9 +1120,8 @@ function renderList(){
   days.forEach(day=>{
     const g=document.createElement('div');g.className='day-group';
     const d=new Date(day+'T00:00');
-    const tot=Math.round(groups[day].reduce((s,e)=>s+(+e.ml||0),0)*10)/10;
-    const totFood=Math.round(groups[day].reduce((s,e)=>s+(+e.food||0),0)*10)/10;
-    const totTxt=`奶量合計 ${tot} ml`+(totFood>0?`・罐罐 ${totFood} g`:'');
+    const totKcal=Math.round(groups[day].reduce((s,e)=>s+mealKcal(e),0)*10)/10;
+    const totTxt=totKcal>0?`熱量合計 ${totKcal} kcal`:'';
     g.innerHTML=`<div class="day-head"><span>${fmtDay(d)} (${'日一二三四五六'[d.getDay()]})</span><span>${totTxt}</span></div>`;
     groups[day].forEach(it=>g.appendChild(makeEntryEl(it)));
     area.appendChild(g);
@@ -1070,29 +1170,83 @@ bindSeg('poopSeg',poopColors);
 bindSeg('whoSeg',whoColors);
 bindSeg('appetiteSeg',null);
 bindSeg('tempSeg',null);
+bindSeg('methodSeg',null);
 
-/* 表單內即時顯示本餐熱量與建議沖泡水 */
-function updateKcalHint(){
-  const ml=parseFloat(document.getElementById('fMl').value)||0;
-  const food=parseFloat(document.getElementById('fFood').value)||0;
-  const scoop=parseFloat(document.getElementById('fScoop').value)||0;
-  const kcal=mealKcal({ml,food,formula_scoop:scoop});
-  const el=document.getElementById('kcalHint');
-  if(!el)return;
-  const parts=[];
-  if(kcal>0){
-    const milkK=Math.round(ml*milkKcalPerMl()*10)/10;
-    const canK=Math.round(food*FEED_CONFIG.canKcalPerG*10)/10;
-    const forK=Math.round(scoop*FEED_CONFIG.formulaKcalPerScoop*10)/10;
-    const bits=[ml?`配方奶 ${milkK}`:'',food?`罐頭 ${canK}`:'',scoop?`奶粉 ${forK}`:''].filter(Boolean);
-    parts.push(`🔥 本餐約 ${kcal} kcal${bits.length>1?`（${bits.join(' + ')}）`:''}`);
-  }
-  if(scoop>0){
-    parts.push(`💧 建議沖泡約 ${Math.round(scoop*FEED_CONFIG.formulaWaterPerScoop)} cc 水（拌罐頭可少加）`);
-  }
-  el.innerHTML=parts.join('<br>');
+/* ================= 餵食：多食物列 ================= */
+const QUICK={wet:[10,20,30],dry:[5,10],milk_powder:[0.5,1],formula:[10,20,30],other:[5,10]};
+const FOOD_EMOJI={wet:'🥫',dry:'🥣',milk_powder:'🥛',formula:'🍼',other:'🍽️'};
+function foodOptionsHtml(selId){
+  let html='<option value="">選擇食物…</option>';
+  const groups={wet:[],dry:[],milk_powder:[],formula:[],other:[]};
+  activeFoods().forEach(f=>{(groups[f.food_type]||groups.other).push(f);});
+  let selFound=!selId;
+  Object.keys(groups).forEach(t=>{
+    if(!groups[t].length)return;
+    html+=`<optgroup label="${FOOD_TYPES[t]}">`;
+    groups[t].forEach(f=>{ if(f.id===selId)selFound=true; html+=`<option value="${esc(f.id)}"${f.id===selId?' selected':''}>${esc(f.name)}</option>`; });
+    html+='</optgroup>';
+  });
+  if(selId&&!selFound){ const f=foodById(selId); if(f)html+=`<option value="${esc(selId)}" selected>${esc(f.name)}（停用）</option>`; }
+  return html;
 }
-['fMl','fFood','fScoop'].forEach(id=>document.getElementById(id).addEventListener('input',updateKcalHint));
+function refreshRowMeta(block){
+  const sel=block.querySelector('select'); const f=foodById(sel.value);
+  block.querySelector('.unit').textContent=f?(FOOD_UNIT[f.food_type]||'g'):'';
+  const q=block.querySelector('.item-quick'); q.innerHTML='';
+  if(f){(QUICK[f.food_type]||QUICK.other).forEach(v=>{
+    const b=document.createElement('button');b.type='button';b.textContent='+'+v;
+    b.onclick=()=>{const inp=block.querySelector('input');inp.value=Math.round(((+inp.value||0)+v)*10)/10;updateKcalHint();};
+    q.appendChild(b);});}
+}
+function addItemRow(item){
+  const wrap=document.getElementById('itemRows');
+  const block=document.createElement('div');
+  const line=document.createElement('div');line.className='item-row';
+  line.innerHTML=`<select>${foodOptionsHtml(item&&item.food_id)}</select>`+
+    `<input type="number" inputmode="decimal" step="0.5" min="0" placeholder="量" value="${item&&item.amount!=null?item.amount:''}">`+
+    `<span class="unit"></span><button type="button" class="rm">✕</button>`;
+  const quick=document.createElement('div');quick.className='item-quick';
+  block.appendChild(line);block.appendChild(quick);
+  wrap.appendChild(block);
+  line.querySelector('select').onchange=()=>{refreshRowMeta(block);updateKcalHint();};
+  line.querySelector('input').addEventListener('input',updateKcalHint);
+  line.querySelector('.rm').onclick=()=>{block.remove();updateKcalHint();};
+  refreshRowMeta(block);
+  return block;
+}
+function collectItems(){
+  const out=[];
+  document.querySelectorAll('#itemRows .item-row').forEach(line=>{
+    const id=line.querySelector('select').value;
+    const amt=parseFloat(line.querySelector('input').value);
+    if(!id||!(amt>0))return;
+    const f=foodById(id); if(!f)return;
+    const it={food_id:id,name:f.name,food_type:f.food_type,amount:amt,unit:FOOD_UNIT[f.food_type]||'g'};
+    it.kcal=Math.round(itemKcal({food_id:id,amount:amt,unit:it.unit})*100)/100;
+    out.push(it);
+  });
+  return out;
+}
+/* 食物庫更新時，重建每列的下拉選單並保留選取 */
+function refreshFoodPickers(){
+  document.querySelectorAll('#itemRows .item-row').forEach(line=>{
+    const sel=line.querySelector('select'), cur=sel.value;
+    sel.innerHTML=foodOptionsHtml(cur);
+    refreshRowMeta(line.parentElement);
+  });
+}
+document.getElementById('addItemBtn').onclick=()=>{addItemRow();};
+
+/* 表單內即時顯示本餐熱量 */
+function updateKcalHint(){
+  const items=collectItems();
+  const kcal=mealKcal({items});
+  const el=document.getElementById('kcalHint'); if(!el)return;
+  if(kcal>0){
+    const bits=items.map(it=>`${FOOD_EMOJI[it.food_type]||''}${Math.round(it.kcal*10)/10}`);
+    el.innerHTML=`🔥 本餐約 ${kcal} kcal`+(bits.length>1?`（${bits.join(' + ')}）`:'');
+  }else{ el.innerHTML=''; }
+}
 
 function openSheet(id){
   editingId=id||null;
@@ -1104,16 +1258,24 @@ function openSheet(id){
     const it=entries.find(e=>e.id===id);
     if(!it)return;
     document.getElementById('fTime').value=it.t;
-    document.getElementById('fMl').value=it.ml??'';
     document.getElementById('fG').value=it.g??'';
-    document.getElementById('fFood').value=it.food??'';
-    document.getElementById('fScoop').value=it.formula_scoop??'';
     document.getElementById('fWater').value=it.water_ml??'';
     document.getElementById('fMed').value=it.med||'';
     document.getElementById('fTopical').value=it.topical||'';
     document.getElementById('fWound').value=it.wound||'';
     document.getElementById('fVaccine').value=it.vaccine||'';
     document.getElementById('fNote').value=it.note||'';
+    document.getElementById('itemRows').innerHTML='';
+    if(Array.isArray(it.items)&&it.items.length){
+      it.items.forEach(x=>addItemRow(x));
+    }else{
+      /* 舊記錄 → 對應到預載食物，方便繼續編輯（原始量保留） */
+      if((+it.food||0)>0)addItemRow({food_id:'bc34w',amount:it.food});
+      if((+it.formula_scoop||0)>0)addItemRow({food_id:'powder',amount:it.formula_scoop});
+      if((+it.ml||0)>0)addItemRow({food_id:'formula',amount:it.ml});
+    }
+    if(!document.querySelector('#itemRows .item-row'))addItemRow();
+    setSeg('methodSeg',it.method||null,null);
     setSeg('peeSeg',it.pee==='no'?'no':'yes',peeColors);
     setSeg('poopSeg',it.poop||'no',poopColors);
     setSeg('appetiteSeg',it.appetite||null,null);
@@ -1121,16 +1283,16 @@ function openSheet(id){
     setSeg('whoSeg',['媽媽','拔拔'].includes(it.who)?it.who:'媽媽',whoColors);
   }else{
     document.getElementById('fTime').value=nowLocal();
-    document.getElementById('fMl').value='';
     document.getElementById('fG').value='';
-    document.getElementById('fFood').value='';
-    document.getElementById('fScoop').value='';
     document.getElementById('fWater').value='';
     document.getElementById('fMed').value='';
     document.getElementById('fTopical').value='';
     document.getElementById('fWound').value='';
     document.getElementById('fVaccine').value='';
     document.getElementById('fNote').value='';
+    document.getElementById('itemRows').innerHTML='';
+    addItemRow();
+    setSeg('methodSeg',null,null);
     setSeg('peeSeg','yes',peeColors);
     setSeg('poopSeg','no',poopColors);
     setSeg('appetiteSeg',null,null);
@@ -1153,16 +1315,12 @@ overlay.onclick=closeSheet;
 document.getElementById('saveBtn').onclick=async()=>{
   const t=document.getElementById('fTime').value;
   if(!t){toast('請選擇時間');return}
-  const mlRaw=document.getElementById('fMl').value;
   const gRaw=document.getElementById('fG').value;
-  const foodRaw=document.getElementById('fFood').value;
-  const scoopRaw=document.getElementById('fScoop').value;
   const waterRaw=document.getElementById('fWater').value;
-  const ml=mlRaw===''?null:parseFloat(mlRaw);
   const g=gRaw===''?null:parseFloat(gRaw);
-  const food=foodRaw===''?null:parseFloat(foodRaw);
-  const formula_scoop=scoopRaw===''?null:parseFloat(scoopRaw);
   const water_ml=waterRaw===''?null:parseFloat(waterRaw);
+  const items=collectItems();
+  const method=getSeg('methodSeg')||'';
   const med=document.getElementById('fMed').value.trim();
   const topical=document.getElementById('fTopical').value.trim();
   const wound=document.getElementById('fWound').value.trim();
@@ -1173,9 +1331,9 @@ document.getElementById('saveBtn').onclick=async()=>{
   const appetite=getSeg('appetiteSeg')||'';
   const food_temp=getSeg('tempSeg')||'';
   const who=getSeg('whoSeg')||'媽媽';
-  const kcal=mealKcal({food,formula_scoop});
+  const kcal=mealKcal({items,appetite});
 
-  if(ml==null&&g==null&&food==null&&formula_scoop==null&&water_ml==null&&!appetite&&!food_temp&&!med&&!topical&&!wound&&!vaccine&&!note&&poop!=='yes'&&pee==='na'){
+  if(!items.length&&g==null&&water_ml==null&&!appetite&&!food_temp&&!med&&!topical&&!wound&&!vaccine&&!note&&poop!=='yes'&&pee==='na'){
     toast('至少填一項內容');return;
   }
 
@@ -1183,7 +1341,7 @@ document.getElementById('saveBtn').onclick=async()=>{
   btn.disabled=true;btn.textContent='儲存中…';
   try{
     const id=editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,6));
-    await setDoc(doc(db,COL,id),{t,ml,g,food,formula_scoop,water_ml,kcal,appetite,food_temp,pee,poop,med,topical,wound,vaccine,note,who});
+    await setDoc(doc(db,COL,id),{t,g,items,water_ml,method,kcal,appetite,food_temp,pee,poop,med,topical,wound,vaccine,note,who});
     toast(editingId?'已更新 🐾':'已儲存 🐾');
     closeSheet();
   }catch(e){
@@ -1599,54 +1757,125 @@ function startFeedConfigListening(){
     err=>console.error('feedConfig listen error',err)
   );
 }
+/* ================= 食物設定（食物資料庫管理）================= */
+let editingFoodId=null;
+function foodKcalStr(f){
+  if(f.food_type==='formula')return `${f.kcal_per_ml||0} kcal/mL`;
+  if(f.food_type==='milk_powder')return `${f.kcal_per_scoop||0} kcal/匙`;
+  return `${f.kcal_per_g||0} kcal/g`;
+}
+function renderFoodManager(){
+  const box=document.getElementById('foodList');
+  const list=FOODS.slice().sort((a,b)=>((a.is_active===false)-(b.is_active===false))||String(a.food_type).localeCompare(String(b.food_type)));
+  if(!list.length){box.innerHTML='<div class="empty" style="padding:14px 0">還沒有食物，按下方新增</div>';return}
+  box.innerHTML='';
+  list.forEach(f=>{
+    const off=f.is_active===false;
+    const el=document.createElement('div');
+    el.className='food-mgr-item'+(off?' off':'');
+    el.innerHTML=`<div class="fm-main">
+        <div class="fm-name">${FOOD_EMOJI[f.food_type]||''} ${esc(f.name)}${off?' <span style="color:var(--paw)">（停用）</span>':''}</div>
+        <div class="fm-sub">${FOOD_TYPES[f.food_type]||''}・${foodKcalStr(f)}${f.brand?'・'+esc(f.brand):''}</div>
+      </div>
+      <button type="button" class="fm-btn fm-edit">編輯</button>
+      <button type="button" class="fm-btn fm-toggle">${off?'啟用':'停用'}</button>`;
+    el.querySelector('.fm-edit').onclick=()=>openFoodForm(f.id);
+    el.querySelector('.fm-toggle').onclick=()=>toggleFood(f.id,off);
+    box.appendChild(el);
+  });
+}
+function updateFoodFormLabels(type){
+  const lbl=document.getElementById('fdKcalLbl');
+  lbl.textContent = type==='formula'?'熱量 (kcal/mL)' : type==='milk_powder'?'熱量 (kcal/匙)' : '熱量 (kcal/g)';
+  document.getElementById('fdExtraWrap').style.display = type==='milk_powder'?'':'none';
+}
+document.querySelectorAll('#fdTypeSeg button').forEach(b=>{
+  b.onclick=()=>{setSeg('fdTypeSeg',b.dataset.v,null);updateFoodFormLabels(b.dataset.v);};
+});
+bindSeg('fdActiveSeg',null);
+function openFoodForm(id){
+  editingFoodId=id||null;
+  const f=id?foodById(id):null;
+  document.getElementById('fdName').value=f?f.name||'':'';
+  document.getElementById('fdBrand').value=f?f.brand||'':'';
+  document.getElementById('fdPackage').value=f?f.package_size||'':'';
+  document.getElementById('fdNotes').value=f?f.notes||'':'';
+  const type=f?f.food_type||'wet':'wet';
+  setSeg('fdTypeSeg',type,null);
+  updateFoodFormLabels(type);
+  const kv = f?(type==='formula'?f.kcal_per_ml:type==='milk_powder'?f.kcal_per_scoop:f.kcal_per_g):'';
+  document.getElementById('fdKcal').value=kv??'';
+  document.getElementById('fdExtra').value=f&&f.scoop_water!=null?f.scoop_water:(f&&type==='milk_powder'?FEED_CONFIG.formulaWaterPerScoop:'');
+  setSeg('fdActiveSeg',(f&&f.is_active===false)?'off':'on',null);
+  document.getElementById('foodForm').hidden=false;
+  document.getElementById('addFoodBtn').style.display='none';
+}
+function closeFoodForm(){
+  document.getElementById('foodForm').hidden=true;
+  document.getElementById('addFoodBtn').style.display='';
+  editingFoodId=null;
+}
+async function toggleFood(id,wasOff){
+  const f=foodById(id); if(!f)return;
+  const {id:_ignore,...rest}=f;
+  try{ await setDoc(doc(db,FOOD_COL,id),{...rest,is_active:wasOff});
+       toast(wasOff?'已啟用':'已停用（未刪除）'); }
+  catch(e){ toast('更新失敗：'+(e.message||'')); }
+}
 function openSettings(){
-  document.getElementById('sCanName').value=FEED_CONFIG.canName||'';
-  document.getElementById('sCanKcal').value=FEED_CONFIG.canKcalPerG??'';
-  document.getElementById('sFormulaName').value=FEED_CONFIG.formulaName||'';
-  document.getElementById('sFormulaKcal').value=FEED_CONFIG.formulaKcalPerScoop??'';
-  document.getElementById('sFormulaWater').value=FEED_CONFIG.formulaWaterPerScoop??'';
+  renderFoodManager();
+  closeFoodForm();
   document.getElementById('setSheet').classList.add('show');
   document.getElementById('setOverlay').classList.add('show');
 }
 function closeSettings(){
   document.getElementById('setSheet').classList.remove('show');
   document.getElementById('setOverlay').classList.remove('show');
+  closeFoodForm();
 }
 document.getElementById('settingsBtn').onclick=openSettings;
 document.getElementById('setCancelBtn').onclick=closeSettings;
 document.getElementById('setOverlay').onclick=closeSettings;
-document.getElementById('setSaveBtn').onclick=async()=>{
-  const canKcal=parseFloat(document.getElementById('sCanKcal').value);
-  const forKcal=parseFloat(document.getElementById('sFormulaKcal').value);
-  const forWater=parseFloat(document.getElementById('sFormulaWater').value);
+document.getElementById('addFoodBtn').onclick=()=>openFoodForm(null);
+document.getElementById('fdCancelBtn').onclick=closeFoodForm;
+document.getElementById('fdSaveBtn').onclick=async()=>{
+  const name=document.getElementById('fdName').value.trim();
+  if(!name){toast('請輸入食物名稱');return}
+  const type=getSeg('fdTypeSeg')||'wet';
+  const kcal=parseFloat(document.getElementById('fdKcal').value);
+  const extra=parseFloat(document.getElementById('fdExtra').value);
   const data={
-    canName:document.getElementById('sCanName').value.trim()||'罐頭',
-    canKcalPerG:isNaN(canKcal)?FEED_CONFIG.canKcalPerG:canKcal,
-    formulaName:document.getElementById('sFormulaName').value.trim()||'奶粉',
-    formulaKcalPerScoop:isNaN(forKcal)?FEED_CONFIG.formulaKcalPerScoop:forKcal,
-    formulaWaterPerScoop:isNaN(forWater)?FEED_CONFIG.formulaWaterPerScoop:forWater
+    name, brand:document.getElementById('fdBrand').value.trim(),
+    food_type:type,
+    package_size:document.getElementById('fdPackage').value.trim(),
+    notes:document.getElementById('fdNotes').value.trim(),
+    is_active:(getSeg('fdActiveSeg')||'on')==='on'
   };
-  const btn=document.getElementById('setSaveBtn');
+  if(type==='formula')data.kcal_per_ml=isNaN(kcal)?0:kcal;
+  else if(type==='milk_powder'){data.kcal_per_scoop=isNaN(kcal)?0:kcal; if(!isNaN(extra))data.scoop_water=extra;}
+  else data.kcal_per_g=isNaN(kcal)?0:kcal;
+  const id=editingFoodId||('food'+Date.now().toString(36)+Math.random().toString(36).slice(2,5));
+  const btn=document.getElementById('fdSaveBtn');
   btn.disabled=true;btn.textContent='儲存中…';
   try{
-    await setDoc(doc(db,'meta','feedConfig'),data);
-    toast('食物設定已更新 🐾');
-    closeSettings();
+    await setDoc(doc(db,FOOD_COL,id),data);
+    toast('食物已儲存 🐾');
+    closeFoodForm();
   }catch(e){
-    console.error('feedConfig save error',e);
+    console.error('food save error',e);
     toast('儲存失敗：'+(e.message||'請檢查網路'));
-  }finally{
-    btn.disabled=false;btn.textContent='儲存設定';
-  }
+  }finally{ btn.disabled=false;btn.textContent='儲存食物'; }
 };
 
 (async()=>{
   renderAge();
   await seedIfEmpty();
+  await seedFoodsIfEmpty();
   startListening();
   startPhotoListening();
   startAvatarListening();
   startFeedConfigListening();
+  startFoodsListening();
   window.addEventListener('resize',()=>{renderWeightChart();renderNutritionChart()});
 })();
 </script>
