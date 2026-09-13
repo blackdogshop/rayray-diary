@@ -140,7 +140,10 @@
   .field textarea{resize:vertical;min-height:56px;line-height:1.5}
   .field input:focus,.field textarea:focus{outline:2px solid var(--butter);border-color:transparent}
   .two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .food-chip{border:1.5px solid var(--stripe);background:#fff;border-radius:99px;padding:7px 12px;font-size:12.5px;font-weight:700;color:var(--tabby);cursor:pointer;font-family:inherit}
+  .food-chip.on{background:var(--leaf);border-color:var(--leaf);color:#fff}
   .item-row{display:flex;gap:6px;align-items:center;margin-bottom:5px}
+  .item-row .fname{flex:1 1 auto;min-width:0;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--tabby)}
   .item-row select{flex:1 1 auto;min-width:0;padding:9px 8px;border:1px solid var(--stripe);border-radius:9px;font-size:13px;font-family:inherit;background:#fff;color:var(--tabby)}
   .item-row input{width:62px;padding:9px 4px;border:1px solid var(--stripe);border-radius:9px;font-size:14px;font-family:inherit;text-align:center;color:var(--tabby)}
   .item-row .unit{font-size:11px;color:var(--tabby-soft);width:18px;flex-shrink:0}
@@ -366,8 +369,10 @@
   <div class="field">
     <label>🍽️ 餵食（一餐可加多種食物）</label>
     <div style="background:#fff;border:1.5px solid var(--stripe);border-radius:11px;padding:10px 12px">
+      <div style="font-size:10.5px;color:#8A7C68;margin-bottom:6px">點食物加入這餐，再填份量：</div>
+      <div id="foodChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+      <button type="button" id="lastMealBtn" class="photo-more" style="margin:0 0 8px;display:none">↩︎ 帶入上一餐</button>
       <div id="itemRows"></div>
-      <button type="button" id="addItemBtn" class="photo-more" style="margin:2px 0 8px">＋ 加入食物</button>
       <div class="field" style="margin-bottom:8px">
         <label style="font-size:11px">💧 額外加水 (mL・不計熱量)</label>
         <input type="number" id="fWater" inputmode="decimal" step="1" min="0" placeholder="只算水分" style="border:1px solid var(--stripe)">
@@ -427,19 +432,19 @@
   </div>
 
   <div class="field">
-    <label>🏥 醫療（有做才填，會顯示有填的項目）</label>
-    <div style="background:#fff;border:1.5px solid var(--stripe);border-radius:11px;padding:10px 12px">
+    <button type="button" id="medToggle" class="photo-more" style="margin:0;text-align:left;padding:11px 12px">＋ 醫療 / 健康（吃藥・擦藥・健康觀察・預防針）</button>
+    <div id="medBox" hidden style="background:#fff;border:1.5px solid var(--stripe);border-radius:11px;padding:10px 12px;margin-top:8px">
       <div style="margin-bottom:9px">
         <label style="font-size:11px;margin-bottom:4px">💊 吃藥</label>
         <input type="text" id="fMed" placeholder="例如：抗生素 0.2ml" style="border:1px solid var(--stripe)">
       </div>
       <div style="margin-bottom:9px">
         <label style="font-size:11px;margin-bottom:4px">🧴 擦藥</label>
-        <input type="text" id="fTopical" placeholder="例如：傷口藥膏（目前暫緩）" style="border:1px solid var(--stripe)">
+        <input type="text" id="fTopical" placeholder="例如：藥膏、眼藥水" style="border:1px solid var(--stripe)">
       </div>
       <div style="margin-bottom:9px">
-        <label style="font-size:11px;margin-bottom:4px">🩹 傷口觀察</label>
-        <input type="text" id="fWound" placeholder="例如：痂皮翹起、滲組織液…" style="border:1px solid var(--stripe)">
+        <label style="font-size:11px;margin-bottom:4px">🩺 健康觀察 / 症狀</label>
+        <input type="text" id="fWound" placeholder="例如：眼睛分泌物、軟便、精神差…（傷口也可記）" style="border:1px solid var(--stripe)">
       </div>
       <div>
         <label style="font-size:11px;margin-bottom:4px">💉 預防針 / 其他醫療</label>
@@ -1221,52 +1226,57 @@ bindSeg('appetiteSeg',null);
 bindSeg('tempSeg',null);
 bindSeg('methodSeg',null);
 
-/* ================= 餵食：多食物列 ================= */
+/* ================= 餵食：點選晶片 + 份量列 ================= */
 const QUICK={wet:[10,20,30],dry:[5,10],milk_powder:[0.5,1],formula:[10,20,30],other:[5,10]};
 const FOOD_EMOJI={wet:'🥫',dry:'🥣',milk_powder:'🥛',formula:'🍼',other:'🍽️'};
-function foodOptionsHtml(selId){
-  let html='<option value="">選擇食物…</option>';
-  const groups={wet:[],dry:[],milk_powder:[],formula:[],other:[]};
-  activeFoods().forEach(f=>{(groups[f.food_type]||groups.other).push(f);});
-  let selFound=!selId;
-  Object.keys(groups).forEach(t=>{
-    if(!groups[t].length)return;
-    html+=`<optgroup label="${FOOD_TYPES[t]}">`;
-    groups[t].forEach(f=>{ if(f.id===selId)selFound=true; html+=`<option value="${esc(f.id)}"${f.id===selId?' selected':''}>${esc(f.name)}</option>`; });
-    html+='</optgroup>';
-  });
-  if(selId&&!selFound){ const f=foodById(selId); if(f)html+=`<option value="${esc(selId)}" selected>${esc(f.name)}（停用）</option>`; }
-  return html;
-}
-function refreshRowMeta(block){
-  const sel=block.querySelector('select'); const f=foodById(sel.value);
-  block.querySelector('.unit').textContent=f?(FOOD_UNIT[f.food_type]||'g'):'';
-  const q=block.querySelector('.item-quick'); q.innerHTML='';
-  if(f){(QUICK[f.food_type]||QUICK.other).forEach(v=>{
-    const b=document.createElement('button');b.type='button';b.textContent='+'+v;
-    b.onclick=()=>{const inp=block.querySelector('input');inp.value=Math.round(((+inp.value||0)+v)*10)/10;updateKcalHint();};
-    q.appendChild(b);});}
-}
+function shortName(n){ n=String(n||''); return n.length>10?n.slice(0,10)+'…':n; }
+function findItemRow(id){ return [...document.querySelectorAll('#itemRows .item-row')].find(l=>l.dataset.foodId===id)||null; }
+/* 每列綁定一個固定食物（由晶片加入，無下拉） */
 function addItemRow(item){
+  const id=item&&item.food_id; if(!id)return null;
+  const f=foodById(id);
+  const ftype=f?f.food_type:'other';
+  const unit=f?(FOOD_UNIT[ftype]||'g'):'g';
   const wrap=document.getElementById('itemRows');
   const block=document.createElement('div');
-  const line=document.createElement('div');line.className='item-row';
-  line.innerHTML=`<select>${foodOptionsHtml(item&&item.food_id)}</select>`+
+  const line=document.createElement('div');line.className='item-row';line.dataset.foodId=id;
+  line.innerHTML=`<span class="fname">${FOOD_EMOJI[ftype]||''} ${esc(f?shortName(f.name):id)}</span>`+
     `<input type="number" inputmode="decimal" step="0.5" min="0" placeholder="量" value="${item&&item.amount!=null?item.amount:''}">`+
-    `<span class="unit"></span><button type="button" class="rm">✕</button>`;
+    `<span class="unit">${unit}</span><button type="button" class="rm">✕</button>`;
   const quick=document.createElement('div');quick.className='item-quick';
+  (QUICK[ftype]||QUICK.other).forEach(v=>{
+    const b=document.createElement('button');b.type='button';b.textContent='+'+v;
+    b.onclick=()=>{const inp=line.querySelector('input');inp.value=Math.round(((+inp.value||0)+v)*10)/10;updateKcalHint();};
+    quick.appendChild(b);});
   block.appendChild(line);block.appendChild(quick);
   wrap.appendChild(block);
-  line.querySelector('select').onchange=()=>{refreshRowMeta(block);updateKcalHint();};
   line.querySelector('input').addEventListener('input',updateKcalHint);
-  line.querySelector('.rm').onclick=()=>{block.remove();updateKcalHint();};
-  refreshRowMeta(block);
+  line.querySelector('.rm').onclick=()=>{block.remove();renderFoodChips();updateKcalHint();};
   return block;
+}
+/* 食物晶片：點一下加入、已加入變綠；移除用該列的 ✕ */
+function renderFoodChips(){
+  const box=document.getElementById('foodChips'); if(!box)return;
+  box.innerHTML='';
+  const fs=activeFoods();
+  if(!fs.length){ box.innerHTML='<span style="font-size:11px;color:var(--tabby-soft)">食物庫是空的，請到 ⚙️ 新增食物</span>'; return; }
+  fs.forEach(f=>{
+    const on=!!findItemRow(f.id);
+    const b=document.createElement('button');b.type='button';
+    b.className='food-chip'+(on?' on':'');
+    b.textContent=`${FOOD_EMOJI[f.food_type]||''} ${f.name}`;
+    b.onclick=()=>{
+      const ex=findItemRow(f.id);
+      if(ex){ ex.querySelector('input').focus(); }
+      else { addItemRow({food_id:f.id}); renderFoodChips(); updateKcalHint(); }
+    };
+    box.appendChild(b);
+  });
 }
 function collectItems(){
   const out=[];
   document.querySelectorAll('#itemRows .item-row').forEach(line=>{
-    const id=line.querySelector('select').value;
+    const id=line.dataset.foodId;
     const amt=parseFloat(line.querySelector('input').value);
     if(!id||!(amt>0))return;
     const f=foodById(id); if(!f)return;
@@ -1276,15 +1286,27 @@ function collectItems(){
   });
   return out;
 }
-/* 食物庫更新時，重建每列的下拉選單並保留選取 */
-function refreshFoodPickers(){
-  document.querySelectorAll('#itemRows .item-row').forEach(line=>{
-    const sel=line.querySelector('select'), cur=sel.value;
-    sel.innerHTML=foodOptionsHtml(cur);
-    refreshRowMeta(line.parentElement);
-  });
+/* 食物庫更新時，重繪晶片（份量列保留） */
+function refreshFoodPickers(){ renderFoodChips(); }
+/* 帶入上一餐（最近一筆有餵食的記錄） */
+function loadLastMeal(){
+  const prev=entries.filter(e=>e.id!==editingId&&hasFeed(e)).sort((a,b)=>b.t.localeCompare(a.t))[0];
+  if(!prev){toast('沒有上一餐可帶入');return}
+  document.getElementById('itemRows').innerHTML='';
+  if(Array.isArray(prev.items)&&prev.items.length){prev.items.forEach(x=>addItemRow(x));}
+  else{
+    if((+prev.food||0)>0)addItemRow({food_id:'bc34w',amount:prev.food});
+    if((+prev.formula_scoop||0)>0)addItemRow({food_id:'powder',amount:prev.formula_scoop});
+    if((+prev.ml||0)>0)addItemRow({food_id:'formula',amount:prev.ml});
+  }
+  if(prev.method)setSeg('methodSeg',prev.method,null);
+  renderFoodChips();updateKcalHint();
+  toast('已帶入上一餐 🐾');
 }
-document.getElementById('addItemBtn').onclick=()=>{addItemRow();};
+document.getElementById('lastMealBtn').onclick=loadLastMeal;
+document.getElementById('medToggle').onclick=()=>{
+  const box=document.getElementById('medBox');box.hidden=!box.hidden;
+};
 
 /* 表單內即時顯示本餐熱量 */
 function updateKcalHint(){
@@ -1323,13 +1345,13 @@ function openSheet(id){
       if((+it.formula_scoop||0)>0)addItemRow({food_id:'powder',amount:it.formula_scoop});
       if((+it.ml||0)>0)addItemRow({food_id:'formula',amount:it.ml});
     }
-    if(!document.querySelector('#itemRows .item-row'))addItemRow();
     setSeg('methodSeg',it.method||null,null);
     setSeg('peeSeg',it.pee==='no'?'no':'yes',peeColors);
     setSeg('poopSeg',it.poop||'no',poopColors);
     setSeg('appetiteSeg',it.appetite||null,null);
     setSeg('tempSeg',it.food_temp||null,null);
     setSeg('whoSeg',['媽媽','拔拔'].includes(it.who)?it.who:'媽媽',whoColors);
+    document.getElementById('medBox').hidden=!(it.med||it.topical||it.wound||it.vaccine);
   }else{
     document.getElementById('fTime').value=nowLocal();
     document.getElementById('fG').value='';
@@ -1340,14 +1362,17 @@ function openSheet(id){
     document.getElementById('fVaccine').value='';
     document.getElementById('fNote').value='';
     document.getElementById('itemRows').innerHTML='';
-    addItemRow();
     setSeg('methodSeg',null,null);
     setSeg('peeSeg','yes',peeColors);
     setSeg('poopSeg','no',poopColors);
     setSeg('appetiteSeg',null,null);
     setSeg('tempSeg',null,null);
+    document.getElementById('medBox').hidden=true;
     if(!getSeg('whoSeg'))setSeg('whoSeg','媽媽',whoColors);
   }
+  renderFoodChips();
+  const hasPrev=entries.some(e=>e.id!==editingId&&hasFeed(e));
+  document.getElementById('lastMealBtn').style.display=hasPrev?'':'none';
   updateKcalHint();
   sheet.classList.add('show');overlay.classList.add('show');
 }
