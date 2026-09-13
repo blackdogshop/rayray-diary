@@ -302,6 +302,7 @@
   </div>
 
   <div id="medBanner" style="display:none;background:#EEF1F9;border-radius:12px;padding:9px 14px;margin-bottom:10px;font-size:13px;font-weight:700;color:#7B87B8;text-align:center"></div>
+  <div id="switchBanner" style="display:none;background:#FFF4E0;border-radius:12px;padding:9px 14px;margin-bottom:10px;font-size:12.5px;font-weight:700;color:#B5793F;text-align:center;line-height:1.5"></div>
   <div id="daySummary" style="font-size:11.5px;color:var(--tabby-soft);text-align:center;margin:-4px 0 10px"></div>
 
   <div class="card" id="nutriCard" style="display:none">
@@ -523,7 +524,10 @@
       </div>
     </div>
     <div style="font-size:10.5px;color:#8A7C68;margin:-2px 0 9px">包裝常標「kcal/100g」→ 除以 100 就是 kcal/g（例：400/100=4.0、90/100=0.9）。</div>
-    <div class="field" style="margin-bottom:9px"><label>備註（可空白）</label><input type="text" id="fdNotes" placeholder="年齡階段、注意事項…"></div>
+    <div class="two-col">
+      <div class="field" style="margin-bottom:9px"><label>適用到（月齡）</label><input type="number" id="fdToAge" inputmode="decimal" step="0.5" min="0" placeholder="例：4（超過會提醒換食）"></div>
+      <div class="field" style="margin-bottom:9px"><label>備註（可空白）</label><input type="text" id="fdNotes" placeholder="型號、注意事項…"></div>
+    </div>
     <div class="field" style="margin-bottom:6px">
       <label>狀態</label>
       <div class="seg" id="fdActiveSeg">
@@ -672,14 +676,14 @@ const FOOD_COL='food_items';
 function defaultFoods(){
   const milkPerMl=Math.round(milkKcalPerMl()*1000)/1000;
   return [
-    {id:'bc34',   name:'Mother&Babycat BC34 乾糧', brand:'Royal Canin', food_type:'dry',
-     kcal_per_g:4.21, package_size:'', age_range:'離乳~4月', is_active:true, notes:'官方 4211 kcal/kg（可依台灣包裝調整）'},
-    {id:'bc34w',  name:'Mother&Babycat BC34W 超軟慕斯', brand:'Royal Canin', food_type:'wet',
-     kcal_per_g:0.92, package_size:'195g', age_range:'離乳~4月', is_active:true, notes:'官方 923 kcal/kg・78 kcal/罐（可依台灣包裝調整）'},
-    {id:'powder', name:FEED_CONFIG.formulaName||'奶粉', brand:'', food_type:'milk_powder',
+    {id:'bc34',   name:'皇家幼貓乾糧', brand:'Royal Canin', food_type:'dry',
+     kcal_per_g:4.21, package_size:'', age_range:'0–4個月', to_age_months:4, is_active:true, notes:'BC34・官方 4211 kcal/kg（可依包裝調整）'},
+    {id:'bc34w',  name:'皇家幼貓濕食', brand:'Royal Canin', food_type:'wet',
+     kcal_per_g:0.92, package_size:'195g', age_range:'0–4個月', to_age_months:4, is_active:true, notes:'BC34W・官方 923 kcal/kg・78 kcal/罐'},
+    {id:'powder', name:'幼貓奶粉', brand:'', food_type:'milk_powder',
      kcal_per_scoop:FEED_CONFIG.formulaKcalPerScoop, scoop_grams:'', is_active:true,
      notes:`1 匙約沖 ${FEED_CONFIG.formulaWaterPerScoop}cc 水`},
-    {id:'formula',name:'配方奶（泡好）', brand:'', food_type:'formula',
+    {id:'formula',name:'配方奶', brand:'', food_type:'formula',
      kcal_per_ml:milkPerMl, is_active:true, notes:'依奶粉沖泡比例換算'}
   ];
 }
@@ -693,6 +697,24 @@ async function seedFoodsIfEmpty(){
     batch.set(marker,{at:new Date().toISOString()});
     await batch.commit();
   }catch(err){ console.error('seed foods error',err); }
+}
+/* 一次性：把已預載的舊長名縮短、補上換食月齡（只跑一次，只動預設食物） */
+async function migrateFoodsV2(){
+  try{
+    const marker=doc(db,'meta','foodsMigratedV2');
+    const m=await getDoc(marker);
+    if(m.exists())return;
+    const upd={
+      bc34w:{name:'皇家幼貓濕食',age_range:'0–4個月',to_age_months:4},
+      bc34:{name:'皇家幼貓乾糧',age_range:'0–4個月',to_age_months:4},
+      powder:{name:'幼貓奶粉'},
+      formula:{name:'配方奶'}
+    };
+    const batch=writeBatch(db);
+    Object.keys(upd).forEach(id=>batch.set(doc(db,FOOD_COL,id),upd[id],{merge:true}));
+    batch.set(marker,{at:new Date().toISOString()});
+    await batch.commit();
+  }catch(err){ console.error('migrate foods v2 error',err); }
 }
 function startFoodsListening(){
   onSnapshot(collection(db,FOOD_COL),
@@ -812,6 +834,20 @@ function renderAge(){
 }
 
 /* ================= 統計 ================= */
+/* 換食提醒：貓咪年齡接近/超過食物「適用到月齡」時提示 */
+function foodSwitchReminder(){
+  const banner=document.getElementById('switchBanner'); if(!banner)return;
+  const ageMo=ageDaysAt(Date.now())/30.44;
+  const due=activeFoods().filter(f=>+f.to_age_months>0 && ageMo>=(+f.to_age_months-0.5));
+  if(due.length){
+    const names=[...new Set(due.map(f=>f.name))].join('、');
+    const minAge=Math.min(...due.map(f=>+f.to_age_months));
+    banner.style.display='block';
+    banner.innerHTML=`🔔 瑞瑞約 ${ageMo.toFixed(1)} 個月了：「${esc(names)}」建議適用到約 ${minAge} 個月，可考慮換成幼貓期食物（如皇家 K36），並到 ⚙️ 更新食物庫。`;
+  }else{
+    banner.style.display='none';
+  }
+}
 function renderStats(){
   const ws=entries.filter(e=>e.g!=null).sort((a,b)=>a.t.localeCompare(b.t));
   const last=ws[ws.length-1];
@@ -1751,7 +1787,7 @@ function compressAvatar(file){
 }
 
 /* ================= 啟動 ================= */
-function renderAll(){renderStats();renderWeightChart();renderWeightInsight();renderNutritionChart();renderList()}
+function renderAll(){renderStats();foodSwitchReminder();renderWeightChart();renderWeightInsight();renderNutritionChart();renderList()}
 
 /* 體重圖時間範圍切換 */
 document.querySelectorAll('#wRange button').forEach(b=>{
@@ -1877,7 +1913,7 @@ function renderFoodManager(){
     el.className='food-mgr-item'+(off?' off':'');
     el.innerHTML=`<div class="fm-main">
         <div class="fm-name">${FOOD_EMOJI[f.food_type]||''} ${esc(f.name)}${off?' <span style="color:var(--paw)">（停用）</span>':''}</div>
-        <div class="fm-sub">${FOOD_TYPES[f.food_type]||''}・${foodKcalStr(f)}${f.brand?'・'+esc(f.brand):''}</div>
+        <div class="fm-sub">${FOOD_TYPES[f.food_type]||''}・${foodKcalStr(f)}${f.brand?'・'+esc(f.brand):''}${+f.to_age_months>0?'・適用到 '+f.to_age_months+'月':''}</div>
       </div>
       <button type="button" class="fm-btn fm-edit">編輯</button>
       <button type="button" class="fm-btn fm-toggle">${off?'啟用':'停用'}</button>`;
@@ -1908,6 +1944,7 @@ function openFoodForm(id){
   const kv = f?(type==='formula'?f.kcal_per_ml:type==='milk_powder'?f.kcal_per_scoop:f.kcal_per_g):'';
   document.getElementById('fdKcal').value=kv??'';
   document.getElementById('fdExtra').value=f&&f.scoop_water!=null?f.scoop_water:(f&&type==='milk_powder'?FEED_CONFIG.formulaWaterPerScoop:'');
+  document.getElementById('fdToAge').value=f&&f.to_age_months!=null?f.to_age_months:'';
   setSeg('fdActiveSeg',(f&&f.is_active===false)?'off':'on',null);
   document.getElementById('foodForm').hidden=false;
   document.getElementById('addFoodBtn').style.display='none';
@@ -1949,11 +1986,16 @@ document.getElementById('fdSaveBtn').onclick=async()=>{
   const type=getSeg('fdTypeSeg')||'wet';
   const kcal=parseFloat(document.getElementById('fdKcal').value);
   const extra=parseFloat(document.getElementById('fdExtra').value);
+  const toAge=parseFloat(document.getElementById('fdToAge').value);
+  /* 從既有食物出發，保留表單沒有的欄位（如 age_range） */
+  const base=editingFoodId?(()=>{const{id:_i,...r}=foodById(editingFoodId)||{};return r;})():{};
   const data={
+    ...base,
     name, brand:document.getElementById('fdBrand').value.trim(),
     food_type:type,
     package_size:document.getElementById('fdPackage').value.trim(),
     notes:document.getElementById('fdNotes').value.trim(),
+    to_age_months:isNaN(toAge)?null:toAge,
     is_active:(getSeg('fdActiveSeg')||'on')==='on'
   };
   if(type==='formula')data.kcal_per_ml=isNaN(kcal)?0:kcal;
@@ -1976,6 +2018,7 @@ document.getElementById('fdSaveBtn').onclick=async()=>{
   renderAge();
   await seedIfEmpty();
   await seedFoodsIfEmpty();
+  await migrateFoodsV2();
   startListening();
   startPhotoListening();
   startAvatarListening();
