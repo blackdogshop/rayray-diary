@@ -469,8 +469,22 @@
 <div class="overlay" id="setOverlay"></div>
 <div class="sheet" id="setSheet">
   <h3>🍽️ 食物設定</h3>
-  <div class="sheet-sub">管理所有食物：新增、編輯熱量、停用舊食物（停用不會刪除）。換品牌只要在這裡新增一筆，不用改程式。</div>
+  <div class="sheet-sub">管理每日熱量目標與所有食物。換品牌只要在這裡新增一筆，不用改程式。</div>
 
+  <div class="field" style="background:#fff;border:1.5px solid var(--stripe);border-radius:11px;padding:10px 12px;margin-bottom:14px">
+    <label>🎯 每日熱量目標</label>
+    <div class="seg" id="tgtSourceSeg" style="gap:6px;margin-bottom:8px">
+      <button type="button" data-v="auto">自動估算</button>
+      <button type="button" data-v="manual">手動輸入</button>
+    </div>
+    <div id="tgtManualWrap" style="display:none">
+      <input type="number" id="tgtManual" inputmode="decimal" step="1" min="0" placeholder="每日目標 kcal（獸醫建議值）">
+    </div>
+    <div style="font-size:10px;color:#8A7C68;margin-top:6px;line-height:1.5">自動＝依體重×年齡係數估算（幼貓 2.5× 逐步降到成貓 1.4×RER），僅參考；手動＝用獸醫給的數字。</div>
+    <button class="save" id="tgtSaveBtn" style="margin-top:8px">儲存目標</button>
+  </div>
+
+  <div style="font-size:12px;font-weight:700;color:var(--tabby-soft);margin-bottom:6px">🍽️ 食物清單</div>
   <div id="foodList"></div>
   <button type="button" id="addFoodBtn" class="photo-more" style="margin:4px 0 8px">＋ 新增食物</button>
 
@@ -565,11 +579,28 @@ const FEED_CONFIG = {
   formulaKcalPerScoop: 12.4, /* 奶粉 1 湯匙 = 12.4 kcal */
   formulaWaterPerScoop: 30   /* 建議沖泡：1 湯匙 : 30cc 水（僅提示） */
 };
-/* 幼貓每日熱量估算：RER=70×kg^0.75；成長期建議 2~3×RER，中心用 2.5× */
+/* 幼貓每日熱量估算：RER=70×kg^0.75；成長係數依年齡遞減（AAHA 幼貓指引） */
 function rerOf(g){ if(!g)return 0; return 70*Math.pow(g/1000,0.75); }
-function calorieTarget(g){
+/* 年齡帶成長係數 [年齡上限(天), mid, low, high] */
+const GROWTH=[
+  [122, 2.5,2.0,3.0],  /* 未滿 4 月 */
+  [183, 2.2,2.0,2.5],  /* 4–6 月 */
+  [274, 2.0,1.7,2.3],  /* 6–9 月 */
+  [365, 1.7,1.5,2.0],  /* 9–12 月 */
+  [Infinity,1.4,1.2,1.6] /* 成貓 */
+];
+function growthFactor(ageDays){ for(const b of GROWTH){ if(ageDays<=b[0]) return {mid:b[1],low:b[2],high:b[3]}; } return {mid:1.4,low:1.2,high:1.6}; }
+function ageDaysAt(ts){ return Math.floor((ts - BIRTH_DATE)/864e5); }
+/* 每日熱量目標：手動優先，否則依體重×年齡係數估算 */
+let TARGET_CFG={source:'auto',manual:null};
+function calorieTarget(g, ageDays){
+  if(TARGET_CFG.source==='manual' && TARGET_CFG.manual>0){
+    const m=Math.round(TARGET_CFG.manual);
+    return {mid:m,low:m,high:m,source:'manual',factor:null};
+  }
   const rer=rerOf(g);
-  return { mid:Math.round(rer*2.5), low:Math.round(rer*2), high:Math.round(rer*3) };
+  const gf=growthFactor(ageDays==null?ageDaysAt(Date.now()):ageDays);
+  return {mid:Math.round(rer*gf.mid),low:Math.round(rer*gf.low),high:Math.round(rer*gf.high),source:'auto',factor:gf.mid};
 }
 /* 配方奶熱量密度：依標準沖泡比例推導 kcal/mL（例：12.4 ÷ 30 ≈ 0.413） */
 function milkKcalPerMl(){
@@ -637,9 +668,9 @@ function defaultFoods(){
   const milkPerMl=Math.round(milkKcalPerMl()*1000)/1000;
   return [
     {id:'bc34',   name:'Mother&Babycat BC34 乾糧', brand:'Royal Canin', food_type:'dry',
-     kcal_per_g:4.0, package_size:'', age_range:'離乳~4月', is_active:true, notes:'請對包裝代謝能確認（約 400 kcal/100g）'},
+     kcal_per_g:4.21, package_size:'', age_range:'離乳~4月', is_active:true, notes:'官方 4211 kcal/kg（可依台灣包裝調整）'},
     {id:'bc34w',  name:'Mother&Babycat BC34W 超軟慕斯', brand:'Royal Canin', food_type:'wet',
-     kcal_per_g:0.9, package_size:'195g', age_range:'離乳~4月', is_active:true, notes:'請對包裝代謝能確認'},
+     kcal_per_g:0.92, package_size:'195g', age_range:'離乳~4月', is_active:true, notes:'官方 923 kcal/kg・78 kcal/罐（可依台灣包裝調整）'},
     {id:'powder', name:FEED_CONFIG.formulaName||'奶粉', brand:'', food_type:'milk_powder',
      kcal_per_scoop:FEED_CONFIG.formulaKcalPerScoop, scoop_grams:'', is_active:true,
      notes:`1 匙約沖 ${FEED_CONFIG.formulaWaterPerScoop}cc 水`},
@@ -851,7 +882,9 @@ function renderStats(){
       if(todayKcal>tgt.high)bar.classList.add('over');
       else if(todayKcal>=tgt.low)bar.classList.add('low');
       headline.innerHTML=`今日 <b style="color:var(--butter-deep)">${todayKcal}</b> / 約 ${tgt.mid} kcal（${pct}%）`;
-      rangeEl.textContent=`參考範圍 ${tgt.low}–${tgt.high} kcal（百分比對中間值 ${tgt.mid}，非及格線）`;
+      rangeEl.textContent = tgt.source==='manual'
+        ? `手動目標 ${tgt.mid} kcal`
+        : `參考範圍 ${tgt.low}–${tgt.high} kcal（估算 ${tgt.factor}×RER・依年齡自動調整・非及格線）`;
     }else{
       bar.style.width='0%';
       headline.innerHTML=`今日 <b style="color:var(--butter-deep)">${todayKcal}</b> kcal`;
@@ -870,10 +903,26 @@ function renderStats(){
     if(formulaKcal>0)kbits.push(`配方奶 ${formulaKcal}`);
     if(otherKcal>0)kbits.push(`其他 ${otherKcal}`);
     const hasPartial=today.some(e=>e.appetite&&e.appetite!=='all'&&hasFeed(e));
+    /* 剩餘熱量 + 換算提示（拿食物庫啟用的濕食、乾糧各一個換算） */
+    let remainHtml='';
+    if(tgt){
+      const remain=r1(tgt.mid-todayKcal);
+      if(remain>0){
+        const wetF=activeFoods().find(f=>f.food_type==='wet'&&+f.kcal_per_g>0);
+        const dryF=activeFoods().find(f=>f.food_type==='dry'&&+f.kcal_per_g>0);
+        const conv=[];
+        if(wetF)conv.push(`🥫${esc(wetF.name.slice(0,6))} 約 ${Math.round(remain/wetF.kcal_per_g)}g`);
+        if(dryF)conv.push(`🥣${esc(dryF.name.slice(0,6))} 約 ${Math.round(remain/dryF.kcal_per_g)}g`);
+        remainHtml=`<br>還可攝取約 <b style="color:var(--leaf)">${remain} kcal</b>`+(conv.length?`（若全吃：${conv.join('／')}）`:'');
+      }else if(remain<0){
+        remainHtml=`<br><span style="color:var(--paw)">已超過估算目標 ${Math.abs(remain)} kcal（可觀察，不必嚴格）</span>`;
+      }
+    }
     document.getElementById('nutriInfo').innerHTML=
       (raw.length?raw.join('・'):'今天還沒有餵食')+
-      (todayKcal>0?`<br>🔥 熱量：${kbits.join(' + ')} = <b style="color:var(--butter-deep)">${todayKcal} kcal</b>`+
-        (hasPartial?'<br><span style="font-size:10px">（上方為放下去的量；熱量已依食慾折算實際吃進的比例）</span>':''):'');
+      (todayKcal>0?`<br>🔥 熱量：${kbits.join(' + ')} = <b style="color:var(--butter-deep)">${todayKcal} kcal</b>`
+        +remainHtml
+        +(hasPartial?'<br><span style="font-size:10px">（上方為放下去的量；熱量已依食慾折算實際吃進的比例）</span>':''):'');
     /* 今日飲食結構（熱量佔比）：濕食 / 乾糧 / 奶類 */
     const wb=document.getElementById('weanBar');
     if(todayKcal>0){
@@ -991,7 +1040,7 @@ function renderNutritionChart(){
       let g=null;
       for(const w of wsAll){ if(w.t.slice(0,10)<=dstr)g=w.g; else break; }
       if(g==null&&wsAll.length)g=wsAll[0].g;
-      return g!=null?calorieTarget(g).mid:0;
+      return g!=null?calorieTarget(g, ageDaysAt(new Date(dstr+'T00:00'))).mid:0;
     };
     const dayTotals=shown.map(d=>daily[d].wet+daily[d].dry+daily[d].milky);
     const dayTargets=shown.map(d=>targetForDay(d));
@@ -1757,6 +1806,34 @@ function startFeedConfigListening(){
     err=>console.error('feedConfig listen error',err)
   );
 }
+/* 每日熱量目標設定（auto/manual），存 meta/target */
+function startTargetListening(){
+  onSnapshot(doc(db,'meta','target'),
+    snap=>{
+      if(snap.exists()){
+        const c=snap.data();
+        TARGET_CFG={source:c.source==='manual'?'manual':'auto', manual:(c.manual!=null?+c.manual:null)};
+        renderAll();
+      }
+    },
+    err=>console.error('target listen error',err)
+  );
+}
+document.querySelectorAll('#tgtSourceSeg button').forEach(b=>{
+  b.onclick=()=>{setSeg('tgtSourceSeg',b.dataset.v,null);
+    document.getElementById('tgtManualWrap').style.display=b.dataset.v==='manual'?'':'none';};
+});
+document.getElementById('tgtSaveBtn').onclick=async()=>{
+  const source=getSeg('tgtSourceSeg')||'auto';
+  const manual=parseFloat(document.getElementById('tgtManual').value);
+  if(source==='manual'&&!(manual>0)){toast('請輸入目標 kcal');return}
+  const btn=document.getElementById('tgtSaveBtn');btn.disabled=true;btn.textContent='儲存中…';
+  try{
+    await setDoc(doc(db,'meta','target'),{source,manual:source==='manual'?manual:null});
+    toast('目標已更新 🐾');
+  }catch(e){ toast('儲存失敗：'+(e.message||'')); }
+  finally{ btn.disabled=false;btn.textContent='儲存目標'; }
+};
 /* ================= 食物設定（食物資料庫管理）================= */
 let editingFoodId=null;
 function foodKcalStr(f){
@@ -1825,6 +1902,9 @@ async function toggleFood(id,wasOff){
 function openSettings(){
   renderFoodManager();
   closeFoodForm();
+  setSeg('tgtSourceSeg',TARGET_CFG.source==='manual'?'manual':'auto',null);
+  document.getElementById('tgtManualWrap').style.display=TARGET_CFG.source==='manual'?'':'none';
+  document.getElementById('tgtManual').value=TARGET_CFG.manual??'';
   document.getElementById('setSheet').classList.add('show');
   document.getElementById('setOverlay').classList.add('show');
 }
@@ -1875,6 +1955,7 @@ document.getElementById('fdSaveBtn').onclick=async()=>{
   startPhotoListening();
   startAvatarListening();
   startFeedConfigListening();
+  startTargetListening();
   startFoodsListening();
   window.addEventListener('resize',()=>{renderWeightChart();renderNutritionChart()});
 })();
